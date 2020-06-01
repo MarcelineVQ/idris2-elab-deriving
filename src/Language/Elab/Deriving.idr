@@ -21,10 +21,6 @@ import Language.Reflection
 
 data Foo = Biz | Baz
 
--- Ideally we would query for these with some reflection mechanism
-fooCons : List TTImp
-fooCons = [`(Biz), `(Baz)]
-
 {-
 NB
 (==) : Foo -> Foo -> Bool
@@ -54,17 +50,17 @@ elseFalse = PatClause EmptyFC `(_) `(False)
 --                         e.g. _ => False
 
 -- compare the `con` we have against what `b` could be, matches or it's False
-eqConClause : (lhs : TTImp) -> (rhs : TTImp) -> Clause
-eqConClause con b = PatClause EmptyFC
-                      con (ICase EmptyFC b `(Foo) [isConPat con, elseFalse])
+eqConClause : (lhs : TTImp) -> (rhs : TTImp) -> (rhs_ty : TTImp) -> Clause
+eqConClause con b ty = PatClause EmptyFC
+                      con (ICase EmptyFC b ty [isConPat con, elseFalse])
               -- e.g. Biz => case b of
               --               Biz => True
               --               _   => False
 
 -- The body of (==)
-eqDef : TTImp -> TTImp -> TTImp
-eqDef a b = ICase EmptyFC a `(Foo)
-              (map (\c => eqConClause c b) fooCons  )
+eqDef : (ty : TTImp) -> List TTImp -> TTImp -> TTImp -> TTImp
+eqDef ty cons a b = ICase EmptyFC a ty
+              (map (\c => eqConClause c b ty) cons)
           -- e.g. case a of
           --        Biz => case b of
           --                 Biz => True
@@ -73,16 +69,72 @@ eqDef a b = ICase EmptyFC a `(Foo)
           --                 Baz => True
           --                 _   => False
 
--- Even things like this logMsg should be elaborated instead of hard coded
-elabEq : Foo -> Foo -> Bool
-elabEq a b = %runElab do logMsg 1 "Reflection elaborating == for Foo"
-                         check (eqDef `(a) `(b))
--- voila
+-- Latest version of making ==, allowing your choice of type. Not sure how to
+-- tidy this up just yet, if you pass around quoted things as arguments they
+-- don't interact very well with reification.
+-- Ideally we would query for the data constructors with some reflection
+-- mechanism and just be able to write
+-- (==) : Foo -> Foo -> Bool
+-- (==) = elabEq
+-- via some
+-- elabEq : (a : ty) -> (b : ty) -> Bool
+-- elabEq a b = %runElab check (eqDef `(ty) (cons ty) `(a) `(b))
+-- or even simply at the top level
+-- %runElab deriveEq `(Foo)
+-- Though reflection for (top-level) declarations isn't in quite yet
 (==) : Foo -> Foo -> Bool
-(==) = elabEq
+(==) a b = %runElab check $ eqDef `(Foo) [`(Biz),`(Baz)] `(a) `(b)
 
+borb1 : Biz == Baz = False
+borb1 = Refl
 
+borb2 : Biz == Biz = True
+borb2 = Refl
 
+borb3 : Baz == Baz = True
+borb3 = Refl
+
+-- If you try proofs here yourself I think idris2 doesn't do well with private
+-- definitions in a namespace. This is why Zab and (==) are marked public
+-- export, it's not at all really neccesary it's just a namespacing bug.
+namespace Zab
+  public export
+  data Zab : Type where
+    Zib : Zab
+    Zyb : Zab
+    Zob : Zab
+    Zub : Zab
+    Zeb : Zab
+  
+  --  So here's the meat, it's still a bit of a mouthful but a little better
+  --  than writing == yourself
+  public export
+  (==) : Zab -> Zab -> Bool
+  (==) a b = %runElab check
+    $ eqDef `(Zab) [`(Zib),`(Zyb),`(Zob),`(Zub),`(Zeb)] `(a) `(b)
+
+  {- -- written yourself
+  (==) : Zab -> Zab -> Bool
+  (==) Zib Zib = True
+  (==) Zyb Zyb = True
+  (==) Zob Zob = True
+  (==) Zub Zub = True
+  (==) Zeb Zeb = True
+  (==) _ _     = False
+  
+  Did we save much writing? Not a lot so far but this will really start to
+  shine when we can omit the data constructor list to eqDef and when we can use
+  this on types that contain types with Eq instances. -}
+
+  borb1 : Zib == Zib = True
+  borb1 = Refl
+ 
+  borb2 : Zob == Zob = True
+  borb2 = Refl
+
+  borb3 : Zeb == Zyb = False
+  borb3 = Refl
+  
 
 
 
