@@ -4,21 +4,16 @@ import Language.Reflection
 
 %language ElabReflection
 
--- Elaboration for == for Foo, we would like to generalize this once we can
--- query datatypes like Foo for what constructors they have. Further it's
--- important to be able to have this work on more complex types like
+-- Elaboration for == for Foo. Next step is to be able to have this work on
+-- more complex types like
 -- data Foo : Type -> Type where
 --   Bob : a -> Foo a
--- In which case we need to be able to search for == for `a` so we can use that
--- and quit if one doesn't exist.
--- Currently this module would only be applicable to enumeration types.
--- This is an immediate concern because a lot of the reason I even want
--- reflection is to derive for newtypes.
 
 -----------------------------
 
 -- Elaboration for == for Foo
 
+export
 data Foo = Biz | Baz
 
 {-
@@ -44,7 +39,7 @@ isConPat : TTImp -> Clause
 isConPat con = PatClause EmptyFC con `(True)
 --                          e.g. Biz => True
 
--- it did not
+-- when it did not
 elseFalse : Clause
 elseFalse = PatClause EmptyFC `(_) `(False)
 --                         e.g. _ => False
@@ -69,30 +64,42 @@ eqDef ty cons a b = ICase EmptyFC a ty
           --                 Baz => True
           --                 _   => False
 
--- Latest version of making ==, allowing your choice of type. Not sure how to
--- tidy this up just yet, if you pass around quoted things as arguments they
--- don't interact very well with reification.
--- Ideally we would query for the data constructors with some reflection
--- mechanism and just be able to write
--- (==) : Foo -> Foo -> Bool
--- (==) = elabEq
--- via some
--- elabEq : (a : ty) -> (b : ty) -> Bool
--- elabEq a b = %runElab check (eqDef `(ty) (cons ty) `(a) `(b))
--- or even simply at the top level
--- %runElab deriveEq `(Foo)
--- Though reflection for (top-level) declarations isn't in quite yet
-(==) : Foo -> Foo -> Bool
-(==) a b = %runElab check $ eqDef `(Foo) [`(Biz),`(Baz)] `(a) `(b)
+iVar : Name -> TTImp
+iVar n = IVar EmptyFC n
 
-borb1 : Biz == Baz = False
-borb1 = Refl
+-- export is default for now, expect that to change/be customizable
+eqDecl : TTImp -> List TTImp -> Elab ()
+eqDecl ty vars
+  = declare `[ export
+               (==) : ~(ty) -> ~(ty) -> Bool
+               (==) x y = ~(eqDef ty vars `(x) `(y)) ] 
 
-borb2 : Biz == Biz = True
-borb2 = Refl
+export
+deriveEq : (n : Name) -> Elab ()
+deriveEq n = do cons@(_::_) <- getCons n
+                  | [] => fail $ show n ++ " doesn't have constructors to equate"
+                traverse (\x => logMsg 1 (show x)) cons
+                eqDecl (iVar n) (map iVar cons)
 
-borb3 : Baz == Baz = True
-borb3 = Refl
+export
+data New : Type -> Type where
+  MkNew : a -> New a
+
+-- %runElab (deriveEq `{{Language.Elab.Deriving.New}})
+
+-- use variable lookup to pass `(Foo) or `{{Foo}}` instead and lookup Language.Elab.Deriving.Foo
+namespace Foo
+  %runElab (deriveEq `{{Language.Elab.Deriving.Foo}})
+  -- Latest version of making ==, allowing your choice of type.
+
+  borb1 : Biz == Baz = False
+  borb1 = Refl
+
+  borb2 : Biz == Biz = True
+  borb2 = Refl
+
+  borb3 : Baz == Baz = True
+  borb3 = Refl
 
 -- If you try proofs here yourself I think idris2 doesn't do well with private
 -- definitions in a namespace. This is why Zab and (==) are marked public
@@ -106,12 +113,8 @@ namespace Zab
     Zub : Zab
     Zeb : Zab
   
-  --  So here's the meat, it's still a bit of a mouthful but a little better
-  --  than writing == yourself
-  public export
-  (==) : Zab -> Zab -> Bool
-  (==) a b = %runElab check
-    $ eqDef `(Zab) [`(Zib),`(Zyb),`(Zob),`(Zub),`(Zeb)] `(a) `(b)
+  -- The meat
+  %runElab deriveEq `{{Language.Elab.Deriving.Zab.Zab}}
 
   {- -- written yourself
   (==) : Zab -> Zab -> Bool
@@ -121,10 +124,7 @@ namespace Zab
   (==) Zub Zub = True
   (==) Zeb Zeb = True
   (==) _ _     = False
-  
-  Did we save much writing? Not a lot so far but this will really start to
-  shine when we can omit the data constructor list to eqDef and when we can use
-  this on types that contain types with Eq instances. -}
+  -}
 
   borb1 : Zib == Zib = True
   borb1 = Refl
@@ -134,7 +134,7 @@ namespace Zab
 
   borb3 : Zeb == Zyb = False
   borb3 = Refl
-  
+
 
 
 
