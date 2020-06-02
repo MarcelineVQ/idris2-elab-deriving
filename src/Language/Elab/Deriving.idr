@@ -113,18 +113,6 @@ deriveEq n = do cons@(_::_) <- getCons n
                 eqDecl (iVar n) (map iVar cons)
 
 export
-deriveE' : (n : Name) -> Elab ()
-deriveE' n = do [(tyn,tyimp)] <- getType n
-                  | _ => fail $ show n ++ " is not unique in scope"
-                cons@(_::_) <- getCons n
-                  | [] => fail $ show n ++ " doesn't have constructors to equate"
-                traverse (\x => logMsg 1 (show x)) cons
-                logTerm 1 (show tyn) tyimp
-                eqDecl tyimp (map iVar cons)
-                pure ()
-                -- eqDecl (iVar n) (map iVar cons)
-
-export
 data New : Type -> Type where
   MkNew : a -> New a
 
@@ -138,84 +126,9 @@ data New2' : Type -> Type -> Type where
   MkNew22 : a -> (a,b) -> New2' a b
   MkNew23 : New2' a b
 
--- So we need to determine what types are used (are explicit and/or Rig>0) in
--- each  constructor, these types will need an Eq or (==) instance. We need to,
--- from just the name `{{New2'}}, construct the type New2' a b, use that type
--- to write our (==) and add Eq or (==) requirements to our instance.
-
-
--- So then step 1 is to take `{{New'}} and figure out how many vars we need to turn it into Type from Type -> Type -> Type or otherwise.
-
--- Once we know the type of n, we need to use it to construct a type for (==)
--- e.g.
--- (==) : {a : Type} -> Eq a => New a -> New a -> Bool
--- (==) : {a : Type} -> {b : Type} ->
---        (Eq a, Eq b) => New2 a b -> New2 a b -> Bool
-{- It'd be nice if we could just write
-`[ (==) : (Eq a, Eq b) => New2 a b -> New2 a b -> Bool
-   (==) x y = 
--}
-{-
-[IClaim (FC) MW Private []
-  (MkTy (FC) (UN "fo")
-    (IPi (FC) MW ExplicitArg Nothing (IApp (FC) (IApp (FC) (IVar (FC) (UN "New2")) (IBindVar (FC) "a")) (IBindVar (FC) "b")) (IPi (FC) MW ExplicitArg Nothing (IApp (FC) (IApp (FC) (IVar (FC) (UN "New2")) (IBindVar (FC) "a")) (IBindVar (FC) "b")) (IBindVar (FC) "a"))))
-, IDef (FC) (UN "fo")
-    [PatClause (FC)
-      (IApp (FC)
-        (IApp (FC)
-          (IVar (FC) (UN "fo"))
-          (IApp (FC)
-            (IApp (FC)
-              (IApp (FC)
-                (IVar (FC) (UN "MkNew2"))
-                (IBindVar (FC) "x"))
-              (IBindVar (FC) "y"))
-            (IBindVar (FC) "z")
-          )
-        )
-        (IApp (FC)
-          (IApp (FC)
-            (IApp (FC)
-              (IVar (FC) (UN "MkNew2"))
-              (IBindVar (FC) "xx"))
-            (IBindVar (FC) "yy")
-          )
-          (IBindVar (FC) "zz")
-        )
-      )
-      (IVar (FC) (UN "x"))
-    ]
-]
--}
-
--- Explicit case tree
-(====) : (Eq a, Eq b) => New2' a b -> New2' a b -> Bool
-(====) a b
-  = case a of
-      (MkNew21 x y z) => case b of
-        (MkNew21 x' y' z') => x == x' && y == y' && z == z'
-        _             => False
-      (MkNew22 x y) => case b of
-        (MkNew22 x' y') => x == x' && y == y'
-        _           => False
-      MkNew23 => case b of
-        MkNew23 => True
-        _       => False
-
--- It's probably easier to generate these cases by going per constructor than
--- building out the case tree
-(=====) : (Eq a, Eq b) => New2' a b -> New2' a b -> Bool
-(=====) (MkNew21 x y z) (MkNew21 x' y' z') = x == x' && y == y' && z == z'
-(=====) (MkNew22 x y) (MkNew22 x' y') = x == x' && y == y'
-(=====) MkNew23 MkNew23 = True
-(=====) _ _ = False
-
--- e.g.
--- iclaim
--- MkNew21 clause
--- MkNew22 clause
--- MkNew23 clause
--- catchall clause
+export
+data New3 : Type -> {f : Type} -> Type -> Type where
+  MkNew3 : a -> b -> g => (a,b) -> {j : a} -> New3 a {f=b} b
 
 getArity : TTImp -> Maybe Nat
 getArity (IPi _ _ ExplicitArg _ _ retTy) =  S <$> getArity retTy
@@ -245,12 +158,6 @@ getExplicitArgs n = do [(_,nimp)] <- getType n
     getEArgs (IPi _ _ _ _ _ retTy) = getEArgs retTy -- skip implicit args
     getEArgs _ = pure []
 
--- fill in required implicits
-fillImps : List Name -> TTImp -> TTImp
-fillImps [] t = t
-fillImps (x :: xs) t
-  = IPi EmptyFC MW ImplicitArg (Just x) (IType EmptyFC) (fillImps xs t)
-
 -- TODO Claim should scan for what constructors are explicitly used to determine Eq
 genClaim : (ty : Name) -> TTImp -> Elab Decl
 genClaim n nimp     = do Just k <- pure (getArity nimp)
@@ -259,10 +166,11 @@ genClaim n nimp     = do Just k <- pure (getArity nimp)
                          -- is used as explicit arguments, this will tell us
                          -- what Eq we need. TODO
                          (ty,imps) <- fillType n k
-                         let bod = IPi EmptyFC MW ExplicitArg Nothing ty (IPi EmptyFC MW ExplicitArg Nothing ty `(Bool))
-                         pure $ IClaim EmptyFC MW Export []
-                                  (MkTy EmptyFC `{{(==)}} (fillImps imps bod))
-
+                         [feb] <- pure `[ export
+                                          (==) : ~(ty) -> (~ty) -> Bool ]
+                           | _ => fail $ "code error in genClaim"
+                         pure feb
+-- ]`
 -- Extract the explicit args for our constructor, since we're comparing two we
 -- do it twice to generate fresh names for each. We use those names to
 -- construct the rhs comparisons and wrap it all up in a clause.
@@ -285,54 +193,21 @@ genClause op con = do
     zipCompare _  _ = `( () ) -- TODO can't happen, should prob use Vect
     
     foldIApp : Name -> List Name -> TTImp
-    foldIApp con args = foldl (\term,arg => term `iApp` (IBindVar EmptyFC (show arg))) (iVar con) args
+    foldIApp con args
+      = foldl (\term,arg => term `iApp` (iBindVar (show arg))) (iVar con) args
 
--- This is the sort of thing we're wanting the above clause to handle.
-{-
-`[ (==) (MkNew a b) (MkNew a' b') = a == a' && b == b']
-[IDef () (UN "==")
-  [PatClause ()
-   (IApp () -- lhs
-     (IApp ()
-       (IVar  (UN "=="))
-       (IApp
-         (IApp ()
-           (IVar () (UN "MkNew"))
-           (IBindVar  "a"))
-         (IBindVar  "b")))
-     (IApp
-       (IApp
-         (IVar  (UN "MkNew"))
-         (IBindVar  "a'"))
-       (IBindVar  "b'")))
-  (IApp --rhs
-    (IApp
-      (IVar  (UN "&&"))
-      (IApp
-        (IApp
-          (IVar  (UN "=="))
-            (IVar  (UN "a")))
-            (IVar  (UN "a'"))))
-    (IApp
-      (IApp
-        (IVar  (UN "=="))
-        (IVar  (UN "b")))
-      (IVar  (UN "b'"))))]]
--}
-
--- generate the clauses, return them and which types need Eq
+-- generate the clauses for ==
 genClauses : (opname : Name) -> (cons : List Name) -> Elab Decl
 genClauses op cons = do cls <- traverse (genClause op) cons
                         pure $ IDef EmptyFC op cls
 
+-- name _ _ = False
 catchAll : Name -> Elab Decl
 catchAll n = do let lhs = iVar n `iApp` implicit' `iApp` implicit'
                 pure $ IDef EmptyFC n [PatClause EmptyFC lhs `(False)]
 -- I'd like to write `[ ~(iVar n) _ _ = False ] but there seems to be issues
 -- With it wanting not wanting to 'apply' ~(iVar n)
 
--- make the claim after the clauses, until we make them we don't actually know
--- which types will require Eq
 deriveEp : (n : Name) -> Elab ()
 deriveEp n = do [(tyn,tyimp)] <- getType n
                   | _ => fail $ show n ++ " is not unique in scope"
@@ -340,34 +215,13 @@ deriveEp n = do [(tyn,tyimp)] <- getType n
                   | [] => fail $ show n ++ " doesn't have constructors to equate"
                 Just k <- pure (getArity tyimp)
                   | Nothing => fail $ show n ++ " arity check failed"
-                (type,implicits) <- fillType n k
                 c <- genClaim tyn tyimp
                 cs <- genClauses `{{(==)}} cons
                 e <- catchAll `{{(==)}}
                 declare $ [c,cs,e]
 
-export
-data New3 : Type -> {f : Type} -> Type -> Type where
-  MkNew3 : a -> b -> g => (a,b) -> {j : a} -> New3 a {f=b} b
 
-(===) : (Eq a, Eq b) => New3 a b -> New3 a b -> Bool
-(===) (MkNew3 x y z) (MkNew3 x' y' z') = x == x' && y == y' && z == z'
-
-fo : New2 a b -> a
-fo (MkNew2 x y z) = x
-
-%runElab deriveEp `{{Language.Elab.Deriving.New}}
-
-
--- `[ fo : New2 a b -> New2 a b -> a; fo (MkNew2 x y z) (MkNew2 x' y' z') = x]
-
-
--- %runElab (deriveE' `{{Language.Elab.Deriving.New}})
-
--- %runElab (deriveE' `{{Language.Elab.Deriving.New2}})
--- %runElab (deriveE' `{{Language.Elab.Deriving.New3}})
-
-{-
+-- %runElab deriveEp `{{Language.Elab.Deriving.New}}
 
 -- use variable lookup to pass `(Foo) or `{{Foo}}` instead and lookup Language.Elab.Deriving.Foo
 namespace Foo
@@ -417,6 +271,4 @@ namespace Zab
   borb3 : Zeb == Zyb = False
   borb3 = Refl
 
-
--}
 
