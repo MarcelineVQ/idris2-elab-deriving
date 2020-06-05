@@ -4,7 +4,7 @@ import Language.Reflection
 
 %language ElabReflection
 
--- the handy regex for eliminating FC from tests: \(MkFC.+?\)\)
+-- the handy regex for eliminating FC from tests: \(MkFC.+?\)\)\s
 
 -- Elaboration for == for Foo. Next step is to be able to have this work on
 -- more complex types like
@@ -205,6 +205,7 @@ genClauses op cons = do cls <- traverse (genClause op) cons
 catchAll : Name -> Elab Decl
 catchAll n = do let lhs = iVar n `iApp` implicit' `iApp` implicit'
                 pure $ IDef EmptyFC n [PatClause EmptyFC lhs `(False)]
+
 -- I'd like to write `[ ~(iVar n) _ _ = False ] but there seems to be issues
 -- With it wanting not wanting to 'apply' ~(iVar n)
 
