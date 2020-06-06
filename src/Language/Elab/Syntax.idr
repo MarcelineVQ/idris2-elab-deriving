@@ -2,22 +2,39 @@ module Language.Elab.Syntax
 
 import Language.Reflection
 
+private
+z : (Int,Int)
+z = (0,0)
+
+export
+namedFC : String -> FC
+namedFC s = MkFC s z z
+
 export
 iVar : Name -> TTImp
-iVar n = IVar EmptyFC n
+iVar = IVar EmptyFC
+
+export
+iVar' : String -> Name -> TTImp
+iVar' s = IVar (namedFC s)
 
 export
 iBindVar : String -> TTImp
-iBindVar n = IBindVar EmptyFC n
+iBindVar = IBindVar EmptyFC
+
+export
+iBindVar' : String -> String -> TTImp
+iBindVar' s = IBindVar (namedFC s)
 
 -- export
 infixl 6 `iApp`
 export
 iApp : TTImp -> TTImp -> TTImp
-iApp x y = IApp EmptyFC x y
+iApp = IApp EmptyFC
 
-iApp' : TTImp -> TTImp -> TTImp
-iApp' x y = IApp (MkFC "iApp'" (0,0) (0,0)) x y
+export
+iApp' : String -> TTImp -> TTImp -> TTImp
+iApp' s = IApp (namedFC s)
 
 
 export
@@ -25,16 +42,32 @@ implicit' : TTImp
 implicit' = Implicit EmptyFC True
 
 export
+implicit'' : String -> TTImp
+implicit'' s = Implicit (namedFC s) True
+
+export
 patClause : (lhs : TTImp) -> (rhs : TTImp) -> Clause
 patClause = PatClause EmptyFC
+
+export
+patClause' : String -> (lhs : TTImp) -> (rhs : TTImp) -> Clause
+patClause' s = PatClause (namedFC s)
 
 export
 iClaim : Count -> Visibility -> List FnOpt -> ITy -> Decl
 iClaim = IClaim EmptyFC
 
 export
+iClaim' : String -> Count -> Visibility -> List FnOpt -> ITy -> Decl
+iClaim' s = IClaim (namedFC s)
+
+export
 mkTy : (n : Name) -> (ty : TTImp) -> ITy
 mkTy = MkTy EmptyFC
+
+export
+mkTy' : String -> (n : Name) -> (ty : TTImp) -> ITy
+mkTy' s = MkTy (namedFC s)
 
 export
 iPi : Count -> PiInfo TTImp -> Maybe Name ->
@@ -42,8 +75,17 @@ iPi : Count -> PiInfo TTImp -> Maybe Name ->
 iPi = IPi EmptyFC
 
 export
+iPi' : String -> Count -> PiInfo TTImp -> Maybe Name ->
+      (argTy : TTImp) -> (retTy : TTImp) -> TTImp
+iPi' s = IPi (namedFC s)
+
+export
 iPrimVal : (c : Constant) -> TTImp
 iPrimVal = IPrimVal EmptyFC
+
+export
+iPrimVal' : String -> (c : Constant) -> TTImp
+iPrimVal' s = IPrimVal (namedFC s)
 
 -- test this, possibly using InCurrentNS, it's unclear whether the name results
 -- list will return useful info or how namespaces affect it.
@@ -78,22 +120,21 @@ getExplicitArgs n = do (_,tyimp) <- lookupName n
     getEArgs _ = pure []
 
 export
-extendNameL : String -> Name -> Name
-extendNameL x (UN y)    = UN (x ++ y)
-extendNameL x (MN y z)  = MN (x ++ y) z
-extendNameL x (NS xs y) = NS xs (extendNameL x y)
-
-export
-extendNameR : Name -> String -> Name
-extendNameR (UN y)    x =  UN (y ++ x)
-extendNameR (MN y z)  x = MN (y ++ x) z
-extendNameR (NS xs y) x = NS xs (extendNameR y x)
+mapName : (String -> String) -> Name -> Name
+mapName f (UN n) = UN (f n)
+mapName f (MN n i) = (MN (f n) i)
+mapName f (NS ns n) = (NS ns (mapName f n))
 
 export
 extractNameStr : Name -> String
 extractNameStr (UN x) = x
 extractNameStr (MN x y) = x
 extractNameStr (NS xs x) = extractNameStr x
+
+export
+extractNameNo : Name -> Int
+extractNameNo (MN _ i) = i
+extractNameNo _ = 0
 
 -- Change/remove this later
 export
@@ -103,3 +144,13 @@ Eq Name where
   (==) (MN x z) (MN y w) = z == w && x == y
   (==) (NS xs x) (NS ys y) = xs == ys && x == y
   (==) _ _ = False
+
+export
+isExplicitPi : PiInfo t -> Bool
+isExplicitPi ExplicitArg = True
+isExplicitPi _ = False
+
+export
+isImplicitPi : PiInfo t -> Bool
+isImplicitPi ImplicitArg = True
+isImplicitPi _ = False
