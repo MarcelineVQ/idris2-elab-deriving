@@ -154,3 +154,7 @@ export
 isImplicitPi : PiInfo t -> Bool
 isImplicitPi ImplicitArg = True
 isImplicitPi _ = False
+
+export
+logDecls : Nat -> String -> List Decl -> Elab ()
+logDecls n s d = logTerm n s $ ILocal EmptyFC d `( () )

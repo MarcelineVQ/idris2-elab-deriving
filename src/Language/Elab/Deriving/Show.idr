@@ -4,11 +4,8 @@ import Language.Elab.Syntax
 import Language.Reflection
 
 import Data.Strings -- intercalate
--- import Data.Vect -- intercalate
 
 %language ElabReflection -- you can remove this once %runElab is no longer used in this module
-
--- derive show
 
 export
 record ArgInfo where
@@ -17,12 +14,6 @@ record ArgInfo where
   piInfo : PiInfo TTImp
   argName   : Name
   argType   : TTImp
-
--- Show ArgInfo where
---   show (MkArgInfo count piInfo argName argType) = ?showPrec_rhs_1
---     where
---       showCount : Count -> String
---       showCount : Count -> String
 
 readableGenSym : String -> Elab String
 readableGenSym s = do MN n i <- genSym s
@@ -47,7 +38,7 @@ genArgs qn = do (_,tyimp) <- lookupName qn
   where
     go : TTImp -> Elab (List ArgInfo)
     go (IPi _ c i n argTy retTy)
-      = [| pure (MkArgInfo c i !(UN <$> readableGenSym "argu") argTy) :: go retTy |]
+      = [| pure (MkArgInfo c i !(UN <$> readableGenSym "arg") argTy) :: go retTy |]
     go _ = pure []
 
 makeTypeInfo : Name -> Elab TypeInfo
@@ -68,15 +59,8 @@ pullImplicits x = filter (isImplicitPi . piInfo) (args x)
 intercalate_str : String -> List String -> String
 intercalate_str sep ss = fastAppend (intersperse sep ss)
 
-withImplicits : Count -> (ty : TTImp) -> (used : List Name) -> TTImp
-withImplicits c ty ns
-  = foldr (\n,sig => iPi c ImplicitArg (Just n) implicit' sig) ty ns
-
--- 1. query for explicit arguments, varnames.
--- 2. build the explicit signature for our show, tysig: `Foo a -> String`
--- 3. add Show constraints, autoimps: ... -> Show a => Show b => ...
--- 4. add implicit tyvars everything else relies on, imps: {a} -> {b} -> ...
--- 5. combine into a claim: opname : {a} -> Show a => Foo a -> String
+-- It works! We still need to prune requring Show on tvars that aren't
+-- actually used, since otherwise users have to provide it.
 showClaim : (opname : Name) -> TypeInfo -> Visibility -> Elab Decl
 showClaim op tyinfo vis = do
     let varnames = map (show . argName) (pullExplicits tyinfo)
@@ -91,89 +75,53 @@ showClaim op tyinfo vis = do
 showCon : (opname : Name) -> TypeInfo -> (conname : Name) -> Elab Clause
 showCon op tyinfo con = do
     coninfo <- makeTypeInfo con
+    conname <- conStr (tiName coninfo)
     let varnames = map (show . argName) (pullExplicits coninfo)
-        lhs = iVar op `iApp` foldl (\tt,v => tt `iApp` (iBindVar "h")) (iVar con) varnames
-        -- rhs = foldl (\tt,v => `( ~(tt) ++ show ~(iBindVar "h")))
-        rhs = foldl (\tt,v => `( ~(tt) ++ "beb")) -- show no good still
-          (iPrimVal (Str "foo")) varnames
+        lhs = iVar op `iApp` foldl (\tt,v => tt `iApp` (iBindVar v)) (iVar con) varnames
+        rhs = foldl (\tt,v => `( ~(tt) ++ " " ++ show ~(iVar (UN v))))
+                (iPrimVal (Str conname)) varnames
     pure $ patClause lhs rhs
-
--- ^ This is giving me:
--- With :set showimplicits
-{-
-Language.Elab.Deriving.Show> :printdef showFoo2
-Language.Elab.Deriving.Show.showFoo2 : {0 argu7297 : Type} -> Show argu7297 => Foo2 argu7297 -> String
-showFoo2 {argu7297} {{conArg:7300} = conArg} (Bor2 {a = argu7297} h) = "foo" ++ ?fefargu7299
--}
--- So why is it unable to find a Show instance? My claim should be providing
--- it, see how argu7297 is threaded through completely right to fulfilling
--- Bor2's `a` type argument? Why isn't Show?
--- What exactly is happening in :printdef showFoo6'? There's a ton of
--- repetition of Show constraints. Do I need to pass ty and __con to show
--- myself?
+  where
+    conStr : Name -> Elab String
+    conStr n = let s = extractNameStr n
+               in  case strM s of
+                     StrNil => fail "empty datacon in: showCon"
+                     StrCons x xs => pure $
+                       if isAlpha x then s else "(" ++ s ++ ")"
 
 
--- determine which tyvars are actually used later. We don't need to require
+-- TODO determine which tyvars are actually used later. We don't need to require
 -- Show a for phantom parameters.
+-- I should really be defining a showPrec because we could need parens in
+-- places. e.g. something that contains a Maybe needs to parens the Just x
 deriveShow : Visibility -> Name -> Elab ()
 deriveShow vis n = do
     (name,_) <- lookupName n
     fun <- pure $ mapName ("show" ++) n -- create a human readable function name
     cons <- getCons name
-    -- construct type and tyvar names
 
-    -- (ty,tyvars) <- makeTypeAndTyVars name cons
-    -- logTerm 1 "makeTypeAndTyVars,type: " type
-    -- traverse (logMsg 1 . ("makeTypeAndTyVars,tyvars: " ++) . show) tyvars
-    -- determine which tyvars are actually used
-    -- used <- usedTyVars ty tyvars cons
-    
-    -- traverse (logMsg 1 . ("usedTyVars,used: " ++) . show) used
-
-    -- create the claim
-    -- c <- showClaim fun ty vis tyvars --used
-    
-    -- create our show function clauses
-    -- cl <- IDef EmptyFC fun <$> traverse (showCon fun tyvars) cons 
-    
-    -- logTerm 1 "fef" $ ILocal EmptyFC [cl] `( () )
-    
-    logTerm 1 "faf" (tiType !(makeTypeInfo name))
     tyinfo <- makeTypeInfo name
-    c <- showClaim fun tyinfo Private --logTerm 1 "faf" (tiType !(makeTypeInfo name))
+    c <- showClaim fun tyinfo vis
     
     cs <- traverse (showCon fun tyinfo) cons
     let g = IDef EmptyFC fun cs
-    -- logTerm 1 "fefa" $ ILocal EmptyFC [c] `( () )
-    logTerm 1 "fefa" $ ILocal EmptyFC [c,g] `( () )
-    -- logTerm 1 "fefb" $ ILocal EmptyFC [g] `( () )
-    
-    let j = `[ showFoo2 : {a : _} -> Show a => Foo a -> String
-               showFoo2 (MkFoo x) = "MkFoo" ++ show x ]
-    
-    -- logTerm 1 "faf" $ ILocal EmptyFC j `( () )
+    logDecls 1 "fefa" [c]
+    logDecls 1 "fofo" [g]
     
     declare [c,g]
-    
-    -- declare [c]
-    -- declare [cl]
-    -- declare [c]
-    -- declare fef
-    pure ()
 
 
+-----------------------------
+-- Testing
+-----------------------------
 
 export
-data Foo : Type -> Type where
-  Bor : Foo a
+data Foo1 : Type -> Type where
+  Bor1 : Foo1 a
 
 export
 data Foo2 : Type -> Type where
   Bor2 : a -> Foo2 a
-
-export
-data Foo3 : Type -> Type where
-  Bor3 : Foo3 a
 
 data Foo4 : Type -> Type -> Type where
   Bor4 : b -> Foo4 a b
@@ -187,14 +135,35 @@ data Foo6 : Type -> Type -> Type -> Type where
   Nor6 : a -> b -> c -> Foo6 a b c
   Bor6 : Foo6 a b c
 
+-- NB c is never used, so Show shouldn't be required for it
+data Foo7 : Type -> Type -> Type -> Type where
+  Zor7 : a -> Foo7 a b c
+  Gor7 : b -> Foo7 a b c
+  Nor7 : a -> b -> Foo7 a b c
+  Bor7 : Foo7 a b c
+
+-- NB a is never used, so Show shouldn't be required for it
+data Foo7' : Type -> Type -> Type -> Type where
+  Zor7' : c -> Foo7' a b c
+  Gor7' : b -> Foo7' a b c
+  Nor7' : b -> c -> Foo7' a b c
+  Bor7' : Foo7' a b c
+
 forfo : Show (Foo6 a b c)
 forfo = ?forfo_rhs
 
 -- %runElab deriveShow Export `{{Foo}}
 %runElab deriveShow Export `{{Foo2}}
--- %runElab deriveShow Export `{{Foo3}}
--- %runElab deriveShow Private `{{Foo5}}
--- %runElab deriveShow Private `{{Foo6}}
+%runElab deriveShow Private `{{Foo5}}
+
+-- These are created fine but use of them is overly restricted currently
+-- We're generating more Show ty constraints than neccsary
+-- e.g. to show Foo1 we have to write: showFoo1 (Bor1 {a=Int})
+-- But in reality we don't use `show` so that's silly.
+%runElab deriveShow Export `{{Foo1}}
+%runElab deriveShow Private `{{Foo6}}
+%runElab deriveShow Private `{{Foo7}}
+%runElab deriveShow Private `{{Foo7'}}
 
 
 
