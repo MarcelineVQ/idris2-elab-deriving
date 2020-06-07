@@ -125,6 +125,12 @@ getExplicitArgs n = do (_,tyimp) <- lookupName n
     getEArgs _ = pure []
 
 export
+readableGenSym : String -> Elab String
+readableGenSym s = do MN n i <- genSym s
+                        | _ => fail "readableGenSym failure"
+                      pure (n ++ show i)
+
+export
 mapName : (String -> String) -> Name -> Name
 mapName f (UN n) = UN (f n)
 mapName f (MN n i) = (MN (f n) i)

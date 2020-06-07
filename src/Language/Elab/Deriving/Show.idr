@@ -3,57 +3,11 @@ module Language.Elab.Deriving.Show
 import Language.Elab.Syntax
 import Language.Reflection
 
+import Language.Elab.Types
+
 import Data.Strings -- intercalate
 
 %language ElabReflection -- you can remove this once %runElab is no longer used in this module
-
-export
-record ArgInfo where
-  constructor MkArgInfo
-  count  : Count
-  piInfo : PiInfo TTImp
-  argName   : Name
-  argType   : TTImp
-
-readableGenSym : String -> Elab String
-readableGenSym s = do MN n i <- genSym s
-                        | _ => fail "readableGenSym failure"
-                      pure (n ++ show i)
-
--- Fully qualified Name
--- Vect since we want to track our indices anyway
--- `type` is our fully applied type, e.g. given args a,b,c: Foo a b c
-export
-record TypeInfo where
-  constructor MkTypeInfo
-  tiName : Name
-  args : List ArgInfo
-  tiType : TTImp
-
--- makes them unique for now
-export
-genArgs : Name -> Elab (List ArgInfo)
-genArgs qn = do (_,tyimp) <- lookupName qn
-                go tyimp
-  where
-    go : TTImp -> Elab (List ArgInfo)
-    go (IPi _ c i n argTy retTy)
-      = [| pure (MkArgInfo c i !(UN <$> readableGenSym "arg") argTy) :: go retTy |]
-    go _ = pure []
-
-makeTypeInfo : Name -> Elab TypeInfo
-makeTypeInfo n = do
-  args <- genArgs n
-  let explArgs = filter (isExplicitPi . piInfo) args
-      explArgNames = map argName explArgs
-      ty = foldl (\term,arg => `( ~(term) ~(iVar arg))) (iVar n) explArgNames
-  pure $ MkTypeInfo n args ty
-
-pullExplicits : TypeInfo -> List ArgInfo
-pullExplicits x = filter (isExplicitPi . piInfo) (args x)
-
-pullImplicits : TypeInfo -> List ArgInfo
-pullImplicits x = filter (isImplicitPi . piInfo) (args x)
 
 intercalate_str : String -> List String -> String
 intercalate_str sep ss = fastAppend (intersperse sep ss)
@@ -97,15 +51,6 @@ showCon op tyinfo con = do
                      StrCons x xs => pure $
                        if isAlpha x then s else "(" ++ s ++ ")"
 
-
-export
-data Foo : Type where
-  Bor : Foo
-
--- interface Bebs a where
-  
--- record Bebs a where
-
 -- This is quite like the function claim in that we need to set up our
 -- autoimplicits
 showObject : (decname : Name) -> (funname : Name) -> TypeInfo -> Visibility -> Elab (List Decl)
@@ -129,18 +74,6 @@ showObject decname showfun tyinfo vis = do
   where
     appTyCon : List String -> TTImp
     appTyCon ns = foldl (\tt,v => `( ~(tt) ~(iBindVar v) )) (iVar (tiName tyinfo)) ns
-
-
--- 
--- (%pi Rig0 Implicit Just ty
---   %type
---   (%pi RigW Explicit Nothing
---    (%pi RigW Explicit Nothing ty String)
---      (%pi RigW Explicit Nothing
---        (%pi RigW Explicit Nothing Prelude.Prec
---          (%pi RigW Explicit Nothing ty String))
---        (Prelude.Show ty))))
-
 
 -- TODO determine which tyvars are actually used later. We don't need to require
 -- Show a for phantom parameters.
@@ -179,12 +112,6 @@ export
 data Foo2 : Type -> Type where
   Bor2 : a -> Foo2 a
 
-fef : Elab (Show (Foo2 a))
-fef = do
-    Just x <- goal
-      | _ => fail "dfsfds"
-    ?fdsdfsfd
-
 data Foo4 : Type -> Type -> Type where
   Bor4 : b -> Foo4 a b
 
@@ -209,7 +136,7 @@ data Foo6 : Type -> Type -> Type -> Nat -> Type where
   Zor6 : a -> b -> Foo6 a b c Z
   Gor6 : b -> Foo6 a b c (S k)
   Nor6A : a -> b -> c -> Foo6 a b c n
-  Nor6B : a -> (0 _ : b) -> c -> Foo6 a b c n -- 0 Use args are skipped
+  Nor6B : a -> (0 _ : b) -> c -> Foo6 a b c n -- NB: 0 Use arg
   Bor6 : Foo6 a b c n
 
 -- reference impl
@@ -217,7 +144,7 @@ showFoo6' : (Show a, Show b, Show c) => Foo6 a b c n -> String
 showFoo6' (Zor6 x y) = "Zor6" ++ show x ++ show y
 showFoo6' (Gor6 x) = "Gor6" ++ show x
 showFoo6' (Nor6A x y z) = "Nor6A" ++ show x ++ show y ++ show z
-showFoo6' (Nor6B x _ z) = "Nor6B" ++ show x ++ "_0" ++ show z -- skip 0 use?
+showFoo6' (Nor6B x _ z) = "Nor6B" ++ show x ++ "_0" ++ show z
 showFoo6' (Bor6) = "Bor6"
 
 -- %runElab deriveShow Export `{{Foo}}
