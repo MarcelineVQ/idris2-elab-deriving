@@ -5,9 +5,7 @@ import Language.Reflection
 
 import Language.Elab.Types
 
-import Data.Strings -- intercalate
-
-%language ElabReflection -- you can remove this once %runElab is no longer used in this module
+import Data.Strings -- fastAppend
 
 intercalate_str : String -> List String -> String
 intercalate_str sep ss = fastAppend (intersperse sep ss)
@@ -18,17 +16,14 @@ showClaim : (opname : Name) -> TypeInfo -> Visibility -> Elab Decl
 showClaim op tyinfo vis = do
     let conargs = pullExplicits tyinfo
         varnames = map (show . argName) (filter (isType . argType) conargs)
-        tysig = `( ~(appTyCon (map (show . argName) conargs)) -> String )
+        tysig = `( ~(appTyCon (map (show . argName) conargs) (tiName tyinfo)) -> String )
         autoimps = foldr (\v,tt => `(Show ~(iBindVar v) => ~(tt))) tysig varnames
     pure $ iClaim MW vis [] (mkTy op autoimps)
-  where
-    appTyCon : List String -> TTImp
-    appTyCon ns = foldl (\tt,v => `( ~(tt) ~(iBindVar v) )) (iVar (tiName tyinfo)) ns
 
 showCon : (opname : Name) -> TypeInfo -> (conname : Name) -> Elab Clause
 showCon op tyinfo con = do
     coninfo <- makeTypeInfo con
-    conname <- conStr (tiName coninfo)
+    conname <- showName (tiName coninfo)
     let varnames = pullExplicits coninfo
         lhsvars = map (show . argName) varnames
         rhsvars = map (\arg => if isUse0 (count arg)
@@ -43,53 +38,37 @@ showCon op tyinfo con = do
     beShown : Maybe String -> TTImp
     beShown (Just x) = `(show ~(iVar (UN x)))
     beShown Nothing = `("_0") -- param is 0 use
-      
-    conStr : Name -> Elab String
-    conStr n = let s = extractNameStr n
-               in  case strM s of
-                     StrNil => fail "empty datacon in: showCon"
-                     StrCons x xs => pure $
-                       if isAlpha x then s else "(" ++ s ++ ")"
 
--- This is quite like the function claim in that we need to set up our
--- autoimplicits
 showObject : (decname : Name) -> (funname : Name) -> TypeInfo -> Visibility -> Elab (List Decl)
 showObject decname showfun tyinfo vis = do
-    (sn,_) <- lookupName `{{Show}}
-    [NS ns (DN showprettyname showconname)] <- getCons sn
-      | _ => fail "showObject: error during Show constructor lookup"
-    (sty,styimp) <- lookupName showconname
-    logTerm 1 (show sty) styimp
-    let conargs = pullExplicits tyinfo
-        varnames = map (show . argName) (filter (isType . argType) conargs)
-        tysig = `( Show ~(appTyCon (map (show . argName) conargs)))
-        autoimps = foldr (\v,tt => `(Show ~(iBindVar v) => ~(tt))) tysig varnames
-        claim = iClaim MW vis [Hint False] (mkTy decname autoimps)
-        -- We'll ignore prec for now
-        showprecfun = `(\_,x => show x) -- Prec -> ty -> String
-        lhs = iVar decname
-        rhs = `( ~(iVar showconname) ~(iVar showfun) ~(showprecfun))
-        body = iDef decname [(patClause lhs rhs)]
-    pure $ [claim,body]
-  where
-    appTyCon : List String -> TTImp
-    appTyCon ns = foldl (\tt,v => `( ~(tt) ~(iBindVar v) )) (iVar (tiName tyinfo)) ns
+  (qname,_) <- lookupName `{{Show}}
+  [NS _ (DN _ showcon)] <- getCons qname
+    | _ => fail "showObject: error during Show constructor lookup"
+  let conargs = pullExplicits tyinfo
+      varnames = map (show . argName) (filter (isType . argType) conargs)
+      retty = `( Show ~(appTyCon (map (show . argName) conargs) (tiName tyinfo)))
+      tysig = foldr (\v,tt => `(Show ~(iBindVar v) => ~(tt))) retty varnames
+      -- Unclear if we need Hint False here, False supposedly chases instances
+      -- but I'm not sure what that means/implies.
+      claim = iClaim MW vis [Hint False] (mkTy decname tysig)
+      showprecfun = `(\_,x => show x) -- Prec ignored like Prelude.Show does
+      rhs = `( ~(iVar showcon) ~(iVar showfun) ~(showprecfun))
+      body = iDef decname [(patClause (iVar decname) rhs)]
+  pure $ [claim,body]
 
--- TODO determine which tyvars are actually used later. We don't need to require
--- Show a for phantom parameters.
--- I should really be defining a showPrec because we could need parens in
--- places. e.g. something that contains a Maybe needs to parens the Just x
+-- TODO determine which tyvars are actually used later. We don't need to
+-- require Show for phantom parameters.
 deriveShow : Visibility -> Name -> Elab ()
-deriveShow vis n = do
-    (name,_) <- lookupName n -- get the qualified name of our type
-    -- create a human readable names for our instance components
-    decn <- pure $ mapName (\d => "show" ++ d) n
-    funn <- pure $ mapName (\d => "show" ++ d ++ "Fun") n
+deriveShow vis sname = do
+    (qname,_) <- lookupName sname -- get the qualified name of our type
+    -- create human readable names for our instance components
+    decn <- pure $ mapName (\d => "showImpl" ++ d) sname
+    funn <- pure $ mapName (\d => "showImpl" ++ d ++ "Fun") sname
     -- Get our type's data constructors
-    cons <- getCons name
+    cons <- getCons qname
     -- General info about the type we're deriving (e.g. Foo) that we want to
     -- keep around.
-    tyinfo <- makeTypeInfo name
+    tyinfo <- makeTypeInfo qname
     -- Our type declaration for our showing function
     c <- showClaim funn tyinfo Private -- NB private
     -- Our clauses for showing each constructor.
@@ -103,6 +82,10 @@ deriveShow vis n = do
 -----------------------------
 -- Testing
 -----------------------------
+
+%language ElabReflection -- you can remove this once %runElab is no longer used in this module
+-- That time will be when deriveShow prunes extraneous Show constraints and the
+-- testing types are moved to their own module
 
 export
 data Foo1 : Type -> Type where

@@ -2,6 +2,9 @@ module Language.Elab.Syntax
 
 import Language.Reflection
 
+import Data.Strings -- strM
+
+
 private
 z : (Int,Int)
 z = (0,0)
@@ -173,6 +176,15 @@ isImplicitPi _ = False
 export
 logDecls : Nat -> String -> List Decl -> Elab ()
 logDecls n s d = logTerm n s $ ILocal EmptyFC d `( () )
+
+-- Turn a name into a string, add parens to an operator-like string
+export
+showName : Name -> Elab String
+showName n = let s = extractNameStr n
+             in  case strM s of
+                   StrNil => fail "showName: empty name"
+                   StrCons x xs => pure $
+                     if isAlpha x then s else "(" ++ s ++ ")"
 
 -----------------------------
 -- Predicates
