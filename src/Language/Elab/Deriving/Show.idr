@@ -62,9 +62,9 @@ intercalate_str sep ss = fastAppend (intersperse sep ss)
 -- actually used, since otherwise users have to provide it.
 showClaim : (opname : Name) -> TypeInfo -> Visibility -> Elab Decl
 showClaim op tyinfo vis = do
-    let varnames = map (show . argName) (pullExplicits tyinfo)
-        ty = appTyCon varnames
-        tysig = `( ~(ty) -> String )
+    let conargs = pullExplicits tyinfo
+        varnames = map (show . argName) (filter (isType . argType) conargs)
+        tysig = `( ~(appTyCon (map (show . argName) conargs)) -> String )
         autoimps = foldr (\v,tt => `(Show ~(iBindVar v) => ~(tt))) tysig varnames
     pure $ iClaim MW vis [] (mkTy op autoimps)
   where
@@ -108,14 +108,16 @@ deriveShow vis n = do
     fun <- pure $ mapName ("show" ++) n -- create a human readable function name
     cons <- getCons name
 
+    r <- pure $ `[ data Foo : Type -> Nat -> Type where ]
+    logDecls 1 "beb" r
+
+
     tyinfo <- makeTypeInfo name
     c <- showClaim fun tyinfo vis
     
     cs <- traverse (showCon fun tyinfo) cons
     let g = IDef EmptyFC fun cs
-    logDecls 1 "fefa" [c]
-    logDecls 1 "fofo" [g]
-    
+
     declare [c,g]
 
 
@@ -137,13 +139,6 @@ data Foo4 : Type -> Type -> Type where
 data Foo5 : Type -> Type -> Type -> Type where
   Bor5 : a -> b -> c -> Foo5 a b c
 
-data Foo6 : Type -> Type -> Type -> Type where
-  Zor6 : a -> b -> Foo6 a b c
-  Gor6 : b -> Foo6 a b c
-  Nor6A : a -> b -> c -> Foo6 a b c
-  Nor6B : a -> (0 _ : b) -> c -> Foo6 a b c -- 0 Use args are skipped
-  Bor6 : Foo6 a b c
-
 -- NB c is never used, so Show shouldn't be required for it
 data Foo7 : Type -> Type -> Type -> Type where
   Zor7 : a -> Foo7 a b c
@@ -158,8 +153,20 @@ data Foo7' : Type -> Type -> Type -> Type where
   Nor7' : b -> c -> Foo7' a b c
   Bor7' : Foo7' a b c
 
-forfo : Show (Foo6 a b c)
-forfo = ?forfo_rhs
+data Foo6 : Type -> Type -> Type -> Nat -> Type where
+  Zor6 : a -> b -> Foo6 a b c Z
+  Gor6 : b -> Foo6 a b c (S k)
+  Nor6A : a -> b -> c -> Foo6 a b c n
+  Nor6B : a -> (0 _ : b) -> c -> Foo6 a b c n -- 0 Use args are skipped
+  Bor6 : Foo6 a b c n
+
+-- reference impl
+showFoo6' : (Show a, Show b, Show c) => Foo6 a b c n -> String
+showFoo6' (Zor6 x y) = "Zor6" ++ show x ++ show y
+showFoo6' (Gor6 x) = "Gor6" ++ show x
+showFoo6' (Nor6A x y z) = "Nor6A" ++ show x ++ show y ++ show z
+showFoo6' (Nor6B x _ z) = "Nor6B" ++ show x ++ "_0" ++ show z -- skip 0 use?
+showFoo6' (Bor6) = "Bor6"
 
 -- %runElab deriveShow Export `{{Foo}}
 %runElab deriveShow Export `{{Foo2}}
@@ -173,13 +180,3 @@ forfo = ?forfo_rhs
 %runElab deriveShow Private `{{Foo6}}
 %runElab deriveShow Private `{{Foo7}}
 %runElab deriveShow Private `{{Foo7'}}
--- showFoo6 (Nor6B 'c' 'd' 'e')
-
--- reference impl
-showFoo6' : (Show a, Show b, Show c) => Foo6 a b c -> String
-showFoo6' (Zor6 x y) = "Zor6" ++ show x ++ show y
-showFoo6' (Gor6 x) = "Gor6" ++ show x
-showFoo6' (Nor6A x y z) = "Nor6A" ++ show x ++ show y ++ show z
-showFoo6' (Nor6B x _ z) = "Nor6B" ++ show x ++ "_0" ++ show z -- skip 0 use?
-showFoo6' (Bor6) = "Bor6" 
-

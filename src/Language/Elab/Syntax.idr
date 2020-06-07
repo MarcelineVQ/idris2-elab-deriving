@@ -159,6 +159,11 @@ export
 logDecls : Nat -> String -> List Decl -> Elab ()
 logDecls n s d = logTerm n s $ ILocal EmptyFC d `( () )
 
+-----------------------------
+-- Predicates
+-- Replace these with something better down the road, even just Eq?
+-----------------------------
+
 export
 isUse0 : Count -> Bool
 isUse0 M0 = True
@@ -173,3 +178,8 @@ export
 isUseW : Count -> Bool
 isUseW MW = True
 isUseW _ = False
+
+export
+isType : TTImp -> Bool
+isType (IType _) = True
+isType _ = False
