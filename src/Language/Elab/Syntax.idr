@@ -75,6 +75,10 @@ iPi : Count -> PiInfo TTImp -> Maybe Name ->
 iPi = IPi EmptyFC
 
 export
+iDef : Name -> List Clause -> Decl
+iDef = IDef EmptyFC
+
+export
 iPi' : String -> Count -> PiInfo TTImp -> Maybe Name ->
       (argTy : TTImp) -> (retTy : TTImp) -> TTImp
 iPi' s = IPi (namedFC s)
@@ -97,7 +101,8 @@ lookupName n = do
     | xs => fail $ show n ++
       case xs of
         [] => " is not in scope."
-        xs => " is not uniquely in scope, these conflicting names exist: " ++ concatMap (show . fst) xs
+        xs => " is not uniquely in scope, these conflicting names exist: " ++
+          concatMap (show . fst) xs
   pure (name,imp)
 
 -- `[ ] returns a list, assert that it only returned one declaration where it
@@ -124,12 +129,16 @@ mapName : (String -> String) -> Name -> Name
 mapName f (UN n) = UN (f n)
 mapName f (MN n i) = (MN (f n) i)
 mapName f (NS ns n) = (NS ns (mapName f n))
+mapName f (DN n realn) = (DN (f n) realn)
+mapName f (RF n) = RF (f n)
 
 export
 extractNameStr : Name -> String
 extractNameStr (UN x) = x
 extractNameStr (MN x y) = x
 extractNameStr (NS xs x) = extractNameStr x
+extractNameStr (DN x _) = x
+extractNameStr (RF x) = x
 
 export
 extractNameNo : Name -> Int

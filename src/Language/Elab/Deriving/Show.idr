@@ -98,28 +98,74 @@ showCon op tyinfo con = do
                        if isAlpha x then s else "(" ++ s ++ ")"
 
 
+export
+data Foo : Type where
+  Bor : Foo
+
+-- interface Bebs a where
+  
+-- record Bebs a where
+
+-- This is quite like the function claim in that we need to set up our
+-- autoimplicits
+showObject : (decname : Name) -> (funname : Name) -> TypeInfo -> Visibility -> Elab (List Decl)
+showObject decname showfun tyinfo vis = do
+    (sn,_) <- lookupName `{{Show}}
+    [NS ns (DN showprettyname showconname)] <- getCons sn
+      | _ => fail "showObject: error during Show constructor lookup"
+    (sty,styimp) <- lookupName showconname
+    logTerm 1 (show sty) styimp
+    let conargs = pullExplicits tyinfo
+        varnames = map (show . argName) (filter (isType . argType) conargs)
+        tysig = `( Show ~(appTyCon (map (show . argName) conargs)))
+        autoimps = foldr (\v,tt => `(Show ~(iBindVar v) => ~(tt))) tysig varnames
+        claim = iClaim MW vis [Hint False] (mkTy decname autoimps)
+        -- We'll ignore prec for now
+        showprecfun = `(\_,x => show x) -- Prec -> ty -> String
+        lhs = iVar decname
+        rhs = `( ~(iVar showconname) ~(iVar showfun) ~(showprecfun))
+        body = iDef decname [(patClause lhs rhs)]
+    pure $ [claim,body]
+  where
+    appTyCon : List String -> TTImp
+    appTyCon ns = foldl (\tt,v => `( ~(tt) ~(iBindVar v) )) (iVar (tiName tyinfo)) ns
+
+
+-- 
+-- (%pi Rig0 Implicit Just ty
+--   %type
+--   (%pi RigW Explicit Nothing
+--    (%pi RigW Explicit Nothing ty String)
+--      (%pi RigW Explicit Nothing
+--        (%pi RigW Explicit Nothing Prelude.Prec
+--          (%pi RigW Explicit Nothing ty String))
+--        (Prelude.Show ty))))
+
+
 -- TODO determine which tyvars are actually used later. We don't need to require
 -- Show a for phantom parameters.
 -- I should really be defining a showPrec because we could need parens in
 -- places. e.g. something that contains a Maybe needs to parens the Just x
 deriveShow : Visibility -> Name -> Elab ()
 deriveShow vis n = do
-    (name,_) <- lookupName n
-    fun <- pure $ mapName ("show" ++) n -- create a human readable function name
+    (name,_) <- lookupName n -- get the qualified name of our type
+    -- create a human readable names for our instance components
+    decn <- pure $ mapName (\d => "show" ++ d) n
+    funn <- pure $ mapName (\d => "show" ++ d ++ "Fun") n
+    -- Get our type's data constructors
     cons <- getCons name
-
-    r <- pure $ `[ data Foo : Type -> Nat -> Type where ]
-    logDecls 1 "beb" r
-
-
+    -- General info about the type we're deriving (e.g. Foo) that we want to
+    -- keep around.
     tyinfo <- makeTypeInfo name
-    c <- showClaim fun tyinfo vis
-    
-    cs <- traverse (showCon fun tyinfo) cons
-    let g = IDef EmptyFC fun cs
-
-    declare [c,g]
-
+    -- Our type declaration for our showing function
+    c <- showClaim funn tyinfo Private -- NB private
+    -- Our clauses for showing each constructor.
+    cs <- traverse (showCon funn tyinfo) cons
+    let g = IDef EmptyFC funn cs
+    -- The actual showFoo : Show Foo instance.
+    o <- showObject decn funn tyinfo vis
+    -- Place our things into the namespace
+    declare $ [c,g] ++ o
 
 -----------------------------
 -- Testing
@@ -132,6 +178,12 @@ data Foo1 : Type -> Type where
 export
 data Foo2 : Type -> Type where
   Bor2 : a -> Foo2 a
+
+fef : Elab (Show (Foo2 a))
+fef = do
+    Just x <- goal
+      | _ => fail "dfsfds"
+    ?fdsdfsfd
 
 data Foo4 : Type -> Type -> Type where
   Bor4 : b -> Foo4 a b
