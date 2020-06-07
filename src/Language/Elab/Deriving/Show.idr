@@ -49,7 +49,6 @@ makeTypeInfo n = do
       ty = foldl (\term,arg => `( ~(term) ~(iVar arg))) (iVar n) explArgNames
   pure $ MkTypeInfo n args ty
 
--- determine if M0 should be excluded from Explicit as well
 pullExplicits : TypeInfo -> List ArgInfo
 pullExplicits x = filter (isExplicitPi . piInfo) (args x)
 
@@ -76,12 +75,21 @@ showCon : (opname : Name) -> TypeInfo -> (conname : Name) -> Elab Clause
 showCon op tyinfo con = do
     coninfo <- makeTypeInfo con
     conname <- conStr (tiName coninfo)
-    let varnames = map (show . argName) (pullExplicits coninfo)
-        lhs = iVar op `iApp` foldl (\tt,v => tt `iApp` (iBindVar v)) (iVar con) varnames
-        rhs = foldl (\tt,v => `( ~(tt) ++ " " ++ show ~(iVar (UN v))))
-                (iPrimVal (Str conname)) varnames
+    let varnames = pullExplicits coninfo
+        lhsvars = map (show . argName) varnames
+        rhsvars = map (\arg => if isUse0 (count arg)
+                             then Nothing
+                             else Just (show (argName arg))) varnames
+        lhs = iVar op `iApp`
+                foldl (\tt,v => tt `iApp` (iBindVar v)) (iVar con) lhsvars
+        rhs = foldl (\tt,v => `( ~(tt) ++ " " ++ ~(beShown v)))
+                (iPrimVal (Str conname)) rhsvars
     pure $ patClause lhs rhs
   where
+    beShown : Maybe String -> TTImp
+    beShown (Just x) = `(show ~(iVar (UN x)))
+    beShown Nothing = `("_0") -- param is 0 use
+      
     conStr : Name -> Elab String
     conStr n = let s = extractNameStr n
                in  case strM s of
@@ -132,7 +140,8 @@ data Foo5 : Type -> Type -> Type -> Type where
 data Foo6 : Type -> Type -> Type -> Type where
   Zor6 : a -> b -> Foo6 a b c
   Gor6 : b -> Foo6 a b c
-  Nor6 : a -> b -> c -> Foo6 a b c
+  Nor6A : a -> b -> c -> Foo6 a b c
+  Nor6B : a -> (0 _ : b) -> c -> Foo6 a b c -- 0 Use args are skipped
   Bor6 : Foo6 a b c
 
 -- NB c is never used, so Show shouldn't be required for it
@@ -159,29 +168,18 @@ forfo = ?forfo_rhs
 -- These are created fine but use of them is overly restricted currently
 -- We're generating more Show ty constraints than neccsary
 -- e.g. to show Foo1 we have to write: showFoo1 (Bor1 {a=Int})
--- But in reality we don't use `show` so that's silly.
+-- But in reality we don't use `show` in Bor1 so that's silly.
 %runElab deriveShow Export `{{Foo1}}
 %runElab deriveShow Private `{{Foo6}}
 %runElab deriveShow Private `{{Foo7}}
 %runElab deriveShow Private `{{Foo7'}}
+-- showFoo6 (Nor6B 'c' 'd' 'e')
 
-
-
-showFoo6' : (Show c, (Show b, Show a)) => Foo6 a b c -> String
+-- reference impl
+showFoo6' : (Show a, Show b, Show c) => Foo6 a b c -> String
 showFoo6' (Zor6 x y) = "Zor6" ++ show x ++ show y
 showFoo6' (Gor6 x) = "Gor6" ++ show x
-showFoo6' (Nor6 x y z) = "Nor6" ++ show z
+showFoo6' (Nor6A x y z) = "Nor6A" ++ show x ++ show y ++ show z
+showFoo6' (Nor6B x _ z) = "Nor6B" ++ show x ++ "_0" ++ show z -- skip 0 use?
 showFoo6' (Bor6) = "Bor6" 
 
-
-
-
--- 
--- smt : a
--- 
--- max : (x : Int) -> (y : Int) -> (v : Int ** (v >= x = True, v >= y = True))
--- 
--- f : Int -> Int
--- f x = fst (max x (fst (MkDPair {p = (\v => v == 0 = True)} 0 smt)))
--- 
--- 

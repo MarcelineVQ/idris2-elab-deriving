@@ -158,3 +158,18 @@ isImplicitPi _ = False
 export
 logDecls : Nat -> String -> List Decl -> Elab ()
 logDecls n s d = logTerm n s $ ILocal EmptyFC d `( () )
+
+export
+isUse0 : Count -> Bool
+isUse0 M0 = True
+isUse0 _ = False
+
+export
+isUse1 : Count -> Bool
+isUse1 M1 = True
+isUse1 _ = False
+
+export
+isUseW : Count -> Bool
+isUseW MW = True
+isUseW _ = False
