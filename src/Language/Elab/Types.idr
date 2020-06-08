@@ -11,8 +11,8 @@ record ArgInfo where
   constructor MkArgInfo
   count  : Count
   piInfo : PiInfo TTImp
-  argName   : Name
-  argType   : TTImp
+  name   : Name
+  type   : TTImp
 
 -- Fully qualified Name
 -- Vect since we want to track our indices anyway
@@ -20,9 +20,9 @@ record ArgInfo where
 public export
 record TypeInfo where
   constructor MkTypeInfo
-  tiName : Name
+  name : Name
   args : List ArgInfo
-  tiType : TTImp
+  type : TTImp
 
 -- makes them unique for now
 export
@@ -40,13 +40,16 @@ makeTypeInfo : Name -> Elab TypeInfo
 makeTypeInfo n = do
   args <- genArgs n
   let explArgs = filter (isExplicitPi . piInfo) args
-      explArgNames = map argName explArgs
-      ty = foldl (\term,arg => `( ~(term) ~(iVar arg))) (iVar n) explArgNames
+      ty = foldl (\term,arg => `( ~(term) ~(iVar arg.name))) (iVar n) explArgs
   pure $ MkTypeInfo n args ty
 
 export
 pullExplicits : TypeInfo -> List ArgInfo
 pullExplicits x = filter (isExplicitPi . piInfo) (args x)
+
+export
+pullImplicits : TypeInfo -> List ArgInfo
+pullImplicits x = filter (isImplicitPi . piInfo) (args x)
 
 -- Takes String so that you can process the names as you like
 -- NB: Likely to change

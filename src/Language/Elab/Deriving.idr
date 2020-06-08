@@ -17,5 +17,7 @@ import Language.Reflection
 -- derive `{{Foo}} Export [Eq,Ord]
 -- derive `{{Foo}} Private [Show]
 
+-- don't forget to have newtype deriving too! There's no reason we should have
+-- to write up instances ourselves when the type we wrap has an instance.
 
 
