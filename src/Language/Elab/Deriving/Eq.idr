@@ -4,10 +4,13 @@ import Language.Elab.Syntax
 import Language.Elab.Types
 
 import Language.Reflection
+-- import Data.Vect
+
+import Util
+
+import Data.Strings -- fastAppend
 
 %language ElabReflection -- you can remove this once %runElab is no longer used in this module
-
-
 
 -- Elaboration for == for Foo. Next step is to be able to have this work on
 -- more complex types like
@@ -16,181 +19,264 @@ import Language.Reflection
 
 -----------------------------
 
--- Elaboration for == for Foo
 
-export
-data Foo = Biz | Baz
+-- NB uses of things like show in the repl can cause ambiguity issues, confirm
+-- this is a problem before submitting a complaint. Refer to the note at
+-- bottom of this file.
 
-{-
-NB
-(==) : Foo -> Foo -> Bool
-(==) Biz Biz = True
-(==) Baz Baz = True
-(==) _ _ = False
+intercalate_str : String -> List String -> String
+intercalate_str sep ss = fastAppend (intersperse sep ss)
 
--- == becomes basically this
-(===) : Foo -> Foo -> Bool
-(===) a b = case a of
-             Biz => case b of
-                      Biz => True
-                      _   => False
-             Baz => case b of
-                      Baz => True
-                      _   => False
--}
+-- A regular isntance might look like (Show a, Show b, Show c) => ...
+-- This pairing isn't actually neccesary, it's just notational convenience and
+-- we don't really have a reason to emulate it.
+-- Show a => Show b => ...  is just as valid as (Show a, Show b) => ...
+-- It also can result in clearer errors.
+addEqAutoImps : List String -> TTImp -> TTImp
+addEqAutoImps xs retty
+  = foldr (\arg,tt => `(Eq ~(iBindVar arg) => ~(tt))) retty xs
 
-compareInnards : (con : TTImp) -> (b : TTImp) -> TTImp
-compareInnards con@(IVar _ _) b = `(True)
-compareInnards (IApp _ y z) (IApp _ y' z') = `( (~(z) == ~(z')) && compareInnards y y' )
-compareInnards _ _ = `(False) -- TODO revisit this
--- compareInnards (IImplicitApp x y z w) (IImplicitApp x' y' z' w') = ?compareInnards_rhs_93
--- compareInnards (IWithApp x y z) (IWithApp x' y' z') = ?compareInnards_rhs_10
+eqClaim : (opname : Name) -> TypeInfo -> Visibility -> Elab Decl
+eqClaim op tyinfo vis = do
+  let conargs = pullExplicits tyinfo
+      varnames = map (show . name) conargs
+      params = map (extractNameStr . name) $ filter (not . isIndex) conargs
+      tysig = `(~(tyinfo.type) -> ~(tyinfo.type) -> Bool)
+  logMsg 1 $ ("auto params: ") ++ show params
+  -- NB: I can't think of a reason not to Inline here
+  pure $ iClaim MW vis [Inline] (mkTy op (addEqAutoImps params tysig))
 
-
--- Did our constructor match
--- If so we need to compare their constituents
-isConPat : (con : TTImp) -> (b : TTImp) -> Clause
-isConPat con b = PatClause EmptyFC con (compareInnards con b)
--- isConPat con b = PatClause EmptyFC con `(True)
---                            e.g. Biz => True
-
-
--- when it did not
-elseFalse : Clause
-elseFalse = PatClause EmptyFC `(_) `(False)
---                         e.g. _ => False
-
--- compare the `con` we have against what `b` could be, matches or it's False
-eqConClause : (lhs : TTImp) -> (rhs : TTImp) -> (rhs_ty : TTImp) -> Clause
-eqConClause con b ty = PatClause EmptyFC
-                      -- con (ICase EmptyFC b ty [isConPat con b, elseFalse])
-                      con (ICase EmptyFC b ty [isConPat con b, elseFalse])
-              -- e.g. Biz => case b of
-              --               Biz => True
-              --               _   => False
-
--- The body of (==)
-eqDef : (ty : TTImp) -> List TTImp -> TTImp -> TTImp -> TTImp
-eqDef ty cons a b = ICase EmptyFC a ty
-              (map (\c => eqConClause c b ty) cons)
-          -- e.g. case a of
-          --        Biz => case b of
-          --                 Biz => True
-          --                 _   => False
-          --        Baz => case b of
-          --                 Baz => True
-          --                 _   => False
-
--- export is default for now, expect that to change/be customizable
-eqDecl : TTImp -> List TTImp -> Elab ()
-eqDecl ty vars
-  = declare `[ export
-               (==) : ~(ty) -> ~(ty) -> Bool
-               (==) x y = ~(eqDef ty vars `(x) `(y)) ]
-
-export
-deriveEq : (n : Name) -> Elab ()
-deriveEq n = do cons@(_::_) <- getCons n
-                  | [] => fail $ show n ++ " doesn't have constructors to equate"
-                traverse (\x => logMsg 1 (show x)) cons
-                eqDecl (iVar n) (map iVar cons)
-
-export
-data New : Type -> Type where
-  MkNew : a -> New a
-
-export
-data New2 : Type -> Type -> Type where
-  MkNew2 : a -> b -> g => (a,b) -> {j : a} -> New2 a b
-
-export
-data New2' : Type -> Type -> Type where
-  MkNew21 : a -> b -> g => (a,b) -> {j : a} -> New2' a b
-  MkNew22 : a -> (a,b) -> New2' a b
-  MkNew23 : New2' a b
-
-export
-data New3 : Type -> {f : Type} -> Type -> Type where
-  MkNew3 : a -> b -> g => (a,b) -> {j : a} -> New3 a {f=b} b
-
-getArity : TTImp -> Maybe Nat
-getArity (IPi _ _ ExplicitArg _ _ retTy) =  S <$> getArity retTy
-getArity (IPi _ _ _ _ _ retTy) = getArity retTy -- skip implicit args
-getArity (IType x) = Just Z
-getArity _ = Nothing
-
--- given some name and arity, give filled type and required implicits
--- e.g. Foo : Type -> Type -> Type -> Type  =>  Foo ty3 ty2 ty1 : Type
--- e.g. Foo : Type =>  Foo : Type
-fillType : Name -> Nat -> Elab (TTImp, List Name)
-fillType n 0 = pure (iVar n, [])
-fillType n (S 0) = do v <- genSym $ "ty0"
-                      pure $ (IApp EmptyFC (iVar n) (iBindVar (show v)), [v])
-fillType n (S k) = do v <- genSym $ "ty" ++ show k
-                      (ty,imps) <- fillType n k
-                      pure $ (IApp EmptyFC ty (iBindVar (show v)), v :: imps)
-
--- TODO Claim should scan for what constructors are explicitly used to determine Eq
-genClaim : (ty : Name) -> TTImp -> Elab Decl
-genClaim n nimp     = do Just k <- pure (getArity nimp)
-                           | Nothing => fail $ show n ++ " arity check failed"
-                         -- here we should scan the data constructors for what
-                         -- is used as explicit arguments, this will tell us
-                         -- what Eq we need. TODO
-                         (ty,imps) <- fillType n k
-                         [feb] <- pure `[ export
-                                          (==) : ~(ty) -> (~ty) -> Bool ]
-                           | _ => fail $ "code error in genClaim"
-                         pure feb
--- ]`
--- Extract the explicit args for our constructor, since we're comparing two we
--- do it twice to generate fresh names for each. We use those names to
--- construct the rhs comparisons and wrap it all up in a clause.
-genClause : (opname : Name) -> (con : Name) -> Elab Clause
-genClause op con = do
-    [(_,conimp)] <- getType con
-      | _ => fail $ show con ++ " is not unique in scope"
-    conargs1 <- getExplicitArgs con
-    conargs2 <- getExplicitArgs con
-    let rhs = zipCompare conargs1 conargs2
-        lhs = iVar op `iApp` foldIApp con conargs1 `iApp` foldIApp con conargs2
+-- TODO crap, might need to figure out how to make the names nicer so people can
+-- direct the type checker more easily, e.g.:
+-- eqImplFoo6Fun {b=Int} {c=String} (Wah6 'c' (S Z)) (Wah6 'c' (S Z))
+-- Won't work out because b and c don't actually have the name b and c
+-- Ideally the names should match the datatype
+eqCon : (opname : Name) -> (Name, List ArgInfo, TTImp) -> Elab Clause
+eqCon op (conname, args, contype) = do
+    let vars = filter (isExplicitPi . piInfo) args
+        -- (pats1, pats2) = makePatVars vars
+        (pats1, pats2) = makePatVars vars
+        lhs = iVar op `iApp` makePat conname pats1 `iApp` makePat conname pats2
+        rhs = makeRhs (zip (catMaybes pats1) (catMaybes pats2))
     pure $ patClause lhs rhs
   where
-    anded : Name -> Name -> TTImp
-    anded x y = `((&&)) `iApp` (iVar x) `iApp` (iVar y)
+    -- make our pat vars, we use Maybe to flag the vars we want to use, we leave indices alone since they need to share their name
+    makePatVars : List ArgInfo
+               -> (List (Maybe ArgInfo), List (Maybe ArgInfo))
+    makePatVars [] = ([],[])
+    makePatVars (a :: as)
+      = let (xs,ys) = makePatVars as
+        in case (isUse0 a.count, a.isIndex) of
+             (True,_) => (Nothing :: xs, Nothing :: ys)
+             (_,True) => (Just a :: xs, Just a :: ys)
+             (_,False) =>
+               (Just (record { name $= mapName (++"_1") } a) :: xs
+               ,Just (record { name $= mapName (++"_2") } a) :: ys)
+
+    makePat : (con : Name) -> (vars : List (Maybe ArgInfo)) -> TTImp
+    makePat con vars = foldl (\tt,v => `(~(tt) ~(plugArg v))) (iVar con) vars
+      where
+        plugArg : Maybe ArgInfo -> TTImp
+        plugArg Nothing = implicit'
+        plugArg (Just arg) = bindNameVar arg.name
+
+    -- A little wordy here, it's set up this way to avoid extra True
+    makeRhs : List (ArgInfo,ArgInfo) -> TTImp
+    makeRhs [] = `(True)
+    makeRhs [(x,y)] = `( ~(iVar x.name) == ~(iVar y.name) )
+    makeRhs ((x,y) :: xs) =
+        `( ~(iVar x.name) == ~(iVar y.name)
+             && ~(makeRhs xs) )
+
+eqObject : (decname : Name) -> (funname : Name) -> TypeInfo
+          -> Visibility -> Elab (Decl, Decl)
+eqObject decname eqfun tyinfo vis = do
+  (qname,_) <- lookupName `{{Eq}}
+  [NS _ (DN _ eqcon)] <- getCons qname
+    | _ => fail "showObject: error during Show constructor lookup"
+  let conargs = pullExplicits tyinfo
+      varnames = map (show . name) conargs
+      varnames' = map (show . name) (filter (not . isIndex) conargs)
+      retty = `( Eq ~(appTyCon (map (show . name) conargs)  tyinfo.name))
+      tysig = addEqAutoImps varnames' retty
+      -- Unclear if we need Hint False here over Hint True.
+      -- Hint False has been chosen because it causes our instance to clash
+      -- with manually created instances in scope, so it must be more right.
+      -- That being said %hint is really Hint True, TODO investigate.
+      claim = iClaim MW vis [Hint False] (mkTy decname tysig)
+      -- TODO prec ignored for the moment, we will want this
+      neqfun = `(\x,y => not (x == y))
+      rhs = `( ~(iVar eqcon) ~(iVar eqfun) ~(neqfun))
+      body = iDef decname [(patClause (iVar decname) rhs)]
+  pure $ (claim,body)
+
+deriveEq : Visibility -> Name -> Elab ()
+deriveEq vis sname = do
+    (qname,_) <- lookupName sname -- get the qualified name of our type
+    -- create human readable names for our instance components
+    let decn = mapName (\d => "eqImpl" ++ d) sname
+        funn = mapName (\d => "eqImpl" ++ d ++ "Fun") sname
+    -- Build general info about the type we're deriving (e.g. Foo) that we want
+    -- to keep around.
+    tyinfo <- makeTypeInfo qname
     
-    zipCompare : List Name -> List Name -> TTImp
-    zipCompare [] [] = `(True)
-    zipCompare (x :: xs) (y :: ys) = anded x y `iApp` zipCompare xs ys
-    zipCompare _  _ = `( () ) -- TODO can't happen, should prob use Vect
+    -- Our components for our showing function
+    funclaim <- eqClaim funn tyinfo Private -- NB private
+    funclauses <- traverseE (eqCon funn) tyinfo.cons
     
-    foldIApp : Name -> List Name -> TTImp
-    foldIApp con args
-      = foldl (\term,arg => term `iApp` (iBindVar (show arg))) (iVar con) args
+    -- Our function's complete definition
+    let catchall = patClause
+          `(~(iVar funn) ~(implicit') ~(implicit'))
+          `(False)
+        fundecl = IDef EmptyFC funn (funclauses ++ [catchall])
+    
+    -- TODO check if an instance exists already and abort if so
+    
+    -- The actual showFoo : Show Foo instance.
+    (objclaim,objclause) <- eqObject decn funn tyinfo vis
+    -- Place our things into the namespace
+    -- Both claims first, otherwise we won't be able to find our own Show
+    declare [funclaim, objclaim]
+    declare [fundecl, objclause]
 
--- generate the clauses for ==
-genClauses : (opname : Name) -> (cons : List Name) -> Elab Decl
-genClauses op cons = do cls <- traverse (genClause op) cons
-                        pure $ IDef EmptyFC op cls
+-----------------------------
+-- Testing Area
+-----------------------------
 
--- name _ _ = False
-catchAll : Name -> Elab Decl
-catchAll n = do let lhs = iVar n `iApp` implicit' `iApp` implicit'
-                pure $ IDef EmptyFC n [PatClause EmptyFC lhs `(False)]
+%language ElabReflection -- you can remove this once %runElab is no longer used in this module
+-- That time will be when deriveShow prunes extraneous Show constraints and the
+-- testing types are moved to their own module
 
--- I'd like to write `[ ~(iVar n) _ _ = False ] but there seems to be issues
--- With it wanting not wanting to 'apply' ~(iVar n)
+export
+data Foo1 : Type -> Type where
+  Bor1 : Foo1 a
 
-deriveEp : (n : Name) -> Elab ()
-deriveEp n = do [(tyn,tyimp)] <- getType n
-                  | _ => fail $ show n ++ " is not unique in scope"
-                cons@(_::_) <- getCons n
-                  | [] => fail $ show n ++ " doesn't have constructors to equate"
-                Just k <- pure (getArity tyimp)
-                  | Nothing => fail $ show n ++ " arity check failed"
-                c <- genClaim tyn tyimp
-                cs <- genClauses `{{(==)}} cons
-                e <- catchAll `{{(==)}}
-                declare $ [c,cs,e]
+export
+data Foo2 : Type -> Type where
+  Bor2 : a -> Foo2 a
+
+data Foo4 : Type -> Type -> Type where
+  Bor4 : b -> Foo4 a b
+
+data Foo5 : Type -> Type -> Type -> Type where
+  Bor5 : a -> b -> c -> Foo5 a b c
+
+-- NB c is never used, so Show shouldn't be required for it
+data Foo7 : Type -> Type -> Type -> Type where
+  Zor7 : a -> Foo7 a b c
+  Gor7 : b -> Foo7 a b c
+  Nor7A : a -> b -> Foo7 a b c
+  Nor7B : a -> b -> c -> Foo7 a b c
+  Bor7 : Foo7 a b c
+
+-- NB a is never used, so Show shouldn't be required for it
+data Foo7' : Type -> Type -> Type -> Type where
+  Zor7' : c -> Foo7' a b c
+  Gor7' : b -> Foo7' a b c
+  Nor7' : b -> c -> Foo7' a b c
+  Bor7' : Foo7' a b c
+
+export
+data MyNat : Type where
+  MZ : MyNat
+  MS : MyNat -> MyNat
+-- we'll use our own nat for index experimentation
+
+Eq MyNat where
+  MZ == MZ = True
+  (MS x) == (MS y) = x == y
+  _ == _ = False
+
+-- %runElab deriveEq Private `{{MyNat}}
+
+data Foo6 : Type -> Type -> Type -> Nat -> Type where
+  Zor6 : a -> b -> Foo6 a b c Z
+  Gor6 : b -> Foo6 a b c (S k)
+  Nor6A : a -> b -> c -> Foo6 a b c n
+  Nor6B : a -> (0 _ : b) -> c -> Foo6 a b c n -- NB: 0 Use arg
+  Bor6A : Foo6 a b c n
+  Bor6B : Foo6 a b c n -> Foo6 a b c n
+  Wah6 : a -> (n : Nat) -> Foo6 a b c n
+
+export
+data Foo6' : Type -> Type -> Type -> MyNat -> Type where
+  Zor6'  : a -> b -> Foo6' a b c MZ
+  Gor6A'  : b -> Foo6' a b c (MS k)
+  Gor6B'  : (k : MyNat) -> b -> Foo6' a b c (MS k)
+  Nor6A' : a -> b -> c -> Foo6' a b c n
+  Nor6B' : a -> (0 _ : b) -> c -> Foo6' a b c n
+  Bor6'  : Foo6' a b c n
+  Wah6'  : a -> (n : MyNat) -> Foo6' a b c n
+  Kah6'  : a -> (n : MyNat) -> (0 _ : c) -> Foo6' a b c n
+  Pah6'  : a -> (n : MyNat) -> MyNat -> (0 _ : c) -> Foo6' a b c n
+  Rah6'  : a -> (n : MyNat) -> Foo6' a b c n -> MyNat -> (0 _ : c) -> Foo6' a b c n -> Foo6' a b c n
+  -- Gah6'  : {1 _ : a} -> (n : MyNat) -> MyNat -> (0 _ : c) -> Foo6' a b c n
+  -- ^ another case to consider, what if I'm implicit but M1?
+  -- Seems like an error would be appropriate there rather than showing
+  -- implicits. Though showing implicits could be a flag in instance generation
+  -- I guess.
+
+-- eqImplFoo6'Fun (Wah6' 'c' MZ) (Wah6' 'c' MZ)
+-- eqImplFoo6'Fun (Nor6A' {n=MZ} 'c' 'd' 'e')
+
+-- eqImplFoo6Fun {b=Int} {c=String} (Wah6 'c' (S Z)) (Wah6 'c' (S Z))
+
+-- reference impl
+-- NB We need to use n twice, Eq is not dependent, two values of `a` compared
+-- against each other must have the same indices. Which follows since if they
+-- don't they're obviously not equal.
+-- if a con has no explicit, non-0, non-index, vars then it's empty, and thus
+-- vauously true to compare to itself. only explicit, non-0, non-index vars need
+-- to be compared. 0 values can't be used and index vars can't vary in an Eq
+-- definition
+eqFoo6 : (Eq a, Eq b, Eq c) => Foo6 a b c n -> Foo6 a b c n -> Bool
+eqFoo6 (Zor6 x1 y1) (Zor6 x2 y2) = x1 == x2 && y1 == y2
+eqFoo6 (Gor6 x1) (Gor6 x2) = x1 == x2
+eqFoo6 (Nor6A x1 y1 z1) (Nor6A x2 y2 z2) = x1 == x2 && y1 == y2 && z1 == z2
+eqFoo6 (Nor6B x1 _ z1) (Nor6B x2 _ z2) = x1 == x2 && z1 == z2
+eqFoo6 Bor6A Bor6A = True
+eqFoo6 (Bor6B x1) (Bor6B x2) = eqFoo6 x1 x2
+-- we prefer to write this as x1 == x2, and we do so by declaring our Eq object
+-- early, otherwise there's no instance for Foo6 to use == from
+eqFoo6 (Wah6 x1 _) (Wah6 x2 _) = x1 == x2 -- indices do not differ
+eqFoo6 _ _ = False
+-- eqFoo6 {b=Int} {c=String} (Wah6 'c' (S Z)) (Wah6 'c' (S Z))
+
+data FooN : MyNat -> Type -> Type where
+  BorZ : b -> FooN MZ b
+  BorS : b -> FooN (MS MZ) b
+  BorNA : (k : MyNat) -> b -> FooN n b
+  BorNB : (n : MyNat) -> b -> FooN n b
+
+%runElab deriveEq Export  `{{MyNat}}
+%runElab deriveEq Export  `{{Foo1}}
+%runElab deriveEq Export  `{{Foo2}}
+%runElab deriveEq Private `{{Foo4}}
+%runElab deriveEq Private `{{Foo5}}
+%runElab deriveEq Private `{{Foo7}}
+%runElab deriveEq Private `{{Foo7'}}
+%runElab deriveEq Private `{{FooN}}
+-- ^ this whole block is 5 secs
+%runElab deriveEq Private `{{Foo6}} -- 5 secs alone wow
+
+-- %runElab deriveEq Export  `{{Foo6'}} -- exponentially larger, why
 
 
+-- Demonstrating the problem in interface type inferring:
+data Bep : Nat -> Type where
+  Ish : Bep n
+
+implementation Show (Bep n) where
+  show Ish = "foo"
+
+bif : Bep n -> String
+bif = show
+-- This is fine in a repl:     bif Ish
+-- This is not fine in a repl: show Ish
+
+-- forfo : (Show a, Show b, Show c) => Foo6 a b c n -> String
+-- forfo = show
+-- This is fine in a repl:     forfo (Nor6A 'c' 'g' 'j')
+-- This is not fine in a repl: show (Nor6A 'c' 'g' 'j')
+
+-- I don't know why our type sig should help so much, we never even use the n

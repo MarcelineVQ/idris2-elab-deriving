@@ -5,6 +5,9 @@ import Language.Reflection
 import Data.Strings -- strM
 
 
+-- Get rid of all the instances here when we've gotten far enough along, these
+-- are not things to leave laying around
+
 private
 z : (Int,Int)
 z = (0,0)
@@ -108,6 +111,9 @@ lookupName n = do
           concatMap (show . fst) xs
   pure (name,imp)
 
+
+
+
 -- `[ ] returns a list, assert that it only returned one declaration where it
 -- was used
 export
@@ -128,10 +134,10 @@ getExplicitArgs n = do (_,tyimp) <- lookupName n
     getEArgs _ = pure []
 
 export
-readableGenSym : String -> Elab String
+readableGenSym : String -> Elab Name
 readableGenSym s = do MN n i <- genSym s
                         | _ => fail "readableGenSym failure"
-                      pure (n ++ show i)
+                      pure (UN (n ++ show i))
 
 export
 mapName : (String -> String) -> Name -> Name
@@ -154,10 +160,9 @@ extractNameNo : Name -> Int
 extractNameNo (MN _ i) = i
 extractNameNo _ = 0
 
--- Change/remove this later
+-- Change/remove this later, we really don't want to have it, or export it
 export
-implementation
-Eq Name where
+implementation Eq Name where
   (==) (UN x) (UN y) = x == y
   (==) (MN x z) (MN y w) = z == w && x == y
   (==) (NS xs x) (NS ys y) = xs == ys && x == y
@@ -186,10 +191,27 @@ showName n = let s = extractNameStr n
                    StrCons x xs => pure $
                      if isAlpha x then s else "(" ++ s ++ ")"
 
+export
+bindNameVar : Name -> TTImp
+bindNameVar = iBindVar  . show
+
 -----------------------------
 -- Predicates
 -- Replace these with something better down the road, even just Eq?
 -----------------------------
+
+export
+Show Count where
+  show M0 = "M0"
+  show M1 = "M1"
+  show MW = "MW"
+
+export
+Show (PiInfo tt) where
+  show ImplicitArg = "ImplicitArg"
+  show ExplicitArg = "ExplicitArg"
+  show AutoImplicit = "AutoImplicit"
+  show (DefImplicit _) = "DefImplicit _"
 
 export
 isUse0 : Count -> Bool
@@ -210,3 +232,16 @@ export
 isType : TTImp -> Bool
 isType (IType _) = True
 isType _ = False
+
+
+
+-- e.g. %runElab printInterfaceCon `{{Eq}}
+export
+printInterfaceCon : Name -> Elab ()
+printInterfaceCon n = do
+  (qname,_) <- lookupName n
+  let nstr = extractNameStr n
+  [NS _ (DN _ icon)] <- getCons qname
+    | _ => fail $ "showObject: error during " ++ nstr ++ " constructor lookup"
+  (_, objimp) <- lookupName icon
+  logTerm 1 (nstr ++ ": ") objimp

@@ -29,12 +29,12 @@ addShowAutoImps xs retty
 -- actually used, since otherwise users have to provide it.
 showClaim : (opname : Name) -> TypeInfo -> Visibility -> Elab Decl
 showClaim op tyinfo vis = do
-    let conargs = pullExplicits tyinfo
-        varnames = map (show . name) conargs
-        varnames' = map (show . name) (filter (isType . type) conargs)
-        tysig = `( ~(appTyCon (map (show . name) conargs) tyinfo.name) -> String )
-    -- NB: I can't think of a reason not to Inline here
-    pure $ iClaim MW vis [Inline] (mkTy op (addShowAutoImps varnames' tysig))
+  let conargs = pullExplicits tyinfo
+      varnames = map (show . name) conargs
+      varnames' = map (show . name) (filter (isType . type) conargs)
+      tysig = `(~(appTyCon (map (show . name) conargs) tyinfo.name) -> String)
+  -- NB: I can't think of a reason not to Inline here
+  pure $ iClaim MW vis [Inline] (mkTy op (addShowAutoImps varnames' tysig))
 
 showCon : (opname : Name) -> TypeInfo -> (conname : Name) -> Elab Clause
 showCon op tyinfo con = do

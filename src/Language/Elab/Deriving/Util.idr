@@ -34,4 +34,3 @@ moduleNameElab = do
     | _ => fail "moduleName is not unique in scope"
   pure (stringConcat . intersperse "." . reverse $ ns)
 
-

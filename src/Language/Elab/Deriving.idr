@@ -20,4 +20,4 @@ import Language.Reflection
 -- don't forget to have newtype deriving too! There's no reason we should have
 -- to write up instances ourselves when the type we wrap has an instance.
 
-
+-- deriving via would be neat too, how do?

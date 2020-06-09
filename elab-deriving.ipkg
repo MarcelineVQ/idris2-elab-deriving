@@ -15,4 +15,4 @@ modules = Language.Elab.Deriving
 
 sourcedir = "src"
 
-depends = base
+depends = base, contrib
