@@ -160,11 +160,11 @@ data MyNat : Type where
   MZ : MyNat
   MS : MyNat -> MyNat
 -- we'll use our own nat for index experimentation
-
-Eq MyNat where
-  MZ == MZ = True
-  (MS x) == (MS y) = x == y
-  _ == _ = False
+-- 
+-- Eq MyNat where
+--   MZ == MZ = True
+--   (MS x) == (MS y) = x == y
+--   _ == _ = False
 
 -- %runElab deriveEq Private `{{MyNat}}
 
