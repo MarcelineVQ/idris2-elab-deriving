@@ -36,24 +36,23 @@ showClaim op tyinfo vis = do
   -- NB: I can't think of a reason not to Inline here
   pure $ iClaim MW vis [Inline] (mkTy op (addShowAutoImps varnames' tysig))
 
-showCon : (opname : Name) -> TypeInfo -> (conname : Name) -> Elab Clause
-showCon op tyinfo con = do
-    coninfo <- makeTypeInfo con
-    conname <- showName coninfo.name
-    let varnames = pullExplicits coninfo
+showCon : (opname : Name) -> (Name, List ArgInfo, TTImp) -> Elab Clause
+showCon op (conname, args, contype) = do
+    let varnames = filter (isExplicitPi . piInfo) args
         lhsvars = map (show . name) varnames
         rhsvars = map (\arg => if isUse0 (count arg)
                              then Nothing
                              else Just (show arg.name)) varnames
         lhs = iVar op `iApp`
-                foldl (\tt,v => `(~(tt) ~(iBindVar v))) (iVar con) lhsvars
+                foldl (\tt,v => `(~(tt) ~(iBindVar v))) (iVar conname) lhsvars
         rhs = foldl (\tt,v => `( ~(tt) ++ " " ++ ~(beShown v)))
-                (iPrimVal (Str conname)) rhsvars
+                (iPrimVal (Str !(showName conname))) rhsvars
     pure $ patClause lhs rhs
   where
     beShown : Maybe String -> TTImp
     beShown (Just x) = `(show ~(iVar (UN x)))
     beShown Nothing = `("_0") -- param is 0 use
+
 
 -- TOTO, really we should be defining showPrec and not show at all
 -- but let's get everything else sorted out first so we're not fighting
@@ -73,11 +72,7 @@ showObject decname showfun tyinfo vis = do
       varnames' = map (show . name) (filter (isType . type) conargs)
       retty = `( Show ~(appTyCon (map (show . name) conargs)  tyinfo.name))
       tysig = addShowAutoImps varnames' retty
-      -- Unclear if we need Hint False here over Hint True.
-      -- Hint False has been chosen because it causes our instance to clash
-      -- with manually created instances in scope, so it must be more right.
-      -- That being said %hint is really Hint True, TODO investigate.
-      claim = iClaim MW vis [Hint False] (mkTy decname tysig)
+      claim = iClaim MW vis [Hint True] (mkTy decname tysig)
        -- TODO prec ignored for the moment, we will want this
       showprecfun = `(\_,x => ~(iVar showfun) x)
       rhs = `( ~(iVar showcon) ~(iVar showfun) ~(showprecfun))
@@ -88,25 +83,30 @@ showObject decname showfun tyinfo vis = do
 -- require Show for phantom parameters.
 deriveShow : Visibility -> Name -> Elab ()
 deriveShow vis sname = do
+  
     (qname,_) <- lookupName sname -- get the qualified name of our type
     -- create human readable names for our instance components
     let decn = mapName (\d => "showImpl" ++ d) sname
         funn = mapName (\d => "showImpl" ++ d ++ "Fun") sname
-    -- Get our type's data constructors
-    cons <- getCons qname
-    -- General info about the type we're deriving (e.g. Foo) that we want to
-    -- keep around.
+    -- Build general info about the type we're deriving (e.g. Foo) that we want
+    -- to keep around.
     tyinfo <- makeTypeInfo qname
+    
     -- Our components for our showing function
     funclaim <- showClaim funn tyinfo Private -- NB private
-    funclauses <- IDef EmptyFC funn <$> traverse (showCon funn tyinfo) cons
+    funclauses <- traverseE (showCon funn) tyinfo.cons
+    
+    -- Our function's complete definition
+    let fundecl = IDef EmptyFC funn (funclauses)
+    
+    -- TODO check if an instance exists already and abort if so
+    
     -- The actual showFoo : Show Foo instance.
     (objclaim,objclause) <- showObject decn funn tyinfo vis
     -- Place our things into the namespace
     -- Both claims first, otherwise we won't be able to find our own Show
-    declare [funclaim  , objclaim ]
-    declare [funclauses, objclause]
-
+    declare [funclaim, objclaim]
+    declare [fundecl, objclause]
 
 -----------------------------
 -- Testing
@@ -198,7 +198,7 @@ data FooN : Nat -> Type -> Type where
 %runElab deriveShow Private `{{Foo7'}}
 %runElab deriveShow Private `{{FooN}}
 
--- There's an issue is use of `show` from the repl as it's not going to do a
+-- There's an issue in use of `show` from the repl as it's not going to do a
 -- bunch of defaulting for you.
 
 -- Demonstrating the problem in interface type inferring:

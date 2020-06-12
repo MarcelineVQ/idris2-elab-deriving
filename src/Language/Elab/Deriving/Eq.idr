@@ -12,21 +12,6 @@ import Data.Strings -- fastAppend
 
 %language ElabReflection -- you can remove this once %runElab is no longer used in this module
 
--- Elaboration for == for Foo. Next step is to be able to have this work on
--- more complex types like
--- data Foo : Type -> Type where
---   Bob : a -> Foo a
-
------------------------------
-
-
--- NB uses of things like show in the repl can cause ambiguity issues, confirm
--- this is a problem before submitting a complaint. Refer to the note at
--- bottom of this file.
-
-intercalate_str : String -> List String -> String
-intercalate_str sep ss = fastAppend (intersperse sep ss)
-
 -- A regular isntance might look like (Show a, Show b, Show c) => ...
 -- This pairing isn't actually neccesary, it's just notational convenience and
 -- we don't really have a reason to emulate it.
@@ -54,7 +39,6 @@ eqClaim op tyinfo vis = do
 eqCon : (opname : Name) -> (Name, List ArgInfo, TTImp) -> Elab Clause
 eqCon op (conname, args, contype) = do
     let vars = filter (isExplicitPi . piInfo) args
-        -- (pats1, pats2) = makePatVars vars
         (pats1, pats2) = makePatVars vars
         lhs = iVar op `iApp` makePat conname pats1 `iApp` makePat conname pats2
         rhs = makeRhs (zip (catMaybes pats1) (catMaybes pats2))
@@ -99,12 +83,7 @@ eqObject decname eqfun tyinfo vis = do
       varnames' = map (show . name) (filter (not . isIndex) conargs)
       retty = `( Eq ~(appTyCon (map (show . name) conargs)  tyinfo.name))
       tysig = addEqAutoImps varnames' retty
-      -- Unclear if we need Hint False here over Hint True.
-      -- Hint False has been chosen because it causes our instance to clash
-      -- with manually created instances in scope, so it must be more right.
-      -- That being said %hint is really Hint True, TODO investigate.
-      claim = iClaim MW vis [Hint False] (mkTy decname tysig)
-      -- TODO prec ignored for the moment, we will want this
+      claim = iClaim MW vis [Hint True] (mkTy decname tysig)
       neqfun = `(\x,y => not (x == y))
       rhs = `( ~(iVar eqcon) ~(iVar eqfun) ~(neqfun))
       body = iDef decname [(patClause (iVar decname) rhs)]
