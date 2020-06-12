@@ -31,11 +31,6 @@ eqClaim op tyinfo vis = do
   -- NB: I can't think of a reason not to Inline here
   pure $ iClaim MW vis [Inline] (mkTy op (addEqAutoImps params tysig))
 
--- TODO crap, might need to figure out how to make the names nicer so people can
--- direct the type checker more easily, e.g.:
--- eqImplFoo6Fun {b=Int} {c=String} (Wah6 'c' (S Z)) (Wah6 'c' (S Z))
--- Won't work out because b and c don't actually have the name b and c
--- Ideally the names should match the datatype
 eqCon : (opname : Name) -> (Name, List ArgInfo, TTImp) -> Elab Clause
 eqCon op (conname, args, contype) = do
     let vars = filter (isExplicitPi . piInfo) args
@@ -123,8 +118,6 @@ deriveEq vis sname = do
 -----------------------------
 
 %language ElabReflection -- you can remove this once %runElab is no longer used in this module
--- That time will be when deriveShow prunes extraneous Show constraints and the
--- testing types are moved to their own module
 
 export
 data Foo1 : Type -> Type where
