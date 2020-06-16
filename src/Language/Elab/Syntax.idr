@@ -81,13 +81,19 @@ iPi : Count -> PiInfo TTImp -> Maybe Name ->
 iPi = IPi EmptyFC
 
 export
-iDef : Name -> List Clause -> Decl
-iDef = IDef EmptyFC
-
-export
 iPi' : String -> Count -> PiInfo TTImp -> Maybe Name ->
       (argTy : TTImp) -> (retTy : TTImp) -> TTImp
 iPi' s = IPi (namedFC s)
+
+export
+iLam : Count -> PiInfo TTImp -> Maybe Name ->
+      (argTy : TTImp) -> (lamTy : TTImp) -> TTImp
+iLam = ILam EmptyFC
+
+export
+iDef : Name -> List Clause -> Decl
+iDef = IDef EmptyFC
+
 
 export
 iPrimVal : (c : Constant) -> TTImp

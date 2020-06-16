@@ -18,6 +18,9 @@ traverseE : (a -> Elab b) -> List a -> Elab (List b)
 traverseE f [] = pure []
 traverseE f (x :: xs) = f x >>= \b => (b ::) <$> traverseE f xs
 
+export
+forE : List a -> (a -> Elab b) -> Elab (List b)
+forE xs f = traverseE f xs
 
 
 -- A argument to a constructor along with additional relation data like whether it's an index of the type
@@ -41,6 +44,12 @@ export
 Show ArgInfo where
   show (MkArgInfo count piInfo name type ind)
     = "MkArgInfo " ++ show count ++ " " ++ show piInfo ++ " " ++ showPrec App name ++ " " ++ "tyttimp " ++ show ind
+
+export
+logArgInfo : Nat -> ArgInfo -> Elab ()
+logArgInfo n (MkArgInfo count piInfo name type isIndex) = do
+  logMsg n $ "MkArgInfo " ++ show count ++ " " ++ show piInfo ++ " " ++ showPrec App name
+  logTerm n "argimp: " type
 
 -- Fully qualified Name
 -- `type` is our fully applied type, e.g. given args a,b,c: Foo a b c
@@ -115,14 +124,14 @@ makeTypeInfo n = do
   conlist <- traverse getConType connames
   let tyargs = filter (isExplicitPi . piInfo) args
       ty = appTyCon (map (\arg => extractNameStr  arg.name) tyargs) tyname
-  pure $ MkTypeInfo n args (zip connames conlist) ty
+  pure $ MkTypeInfo tyname args (zip connames conlist) ty
 
 
 
 -----------------------------
 -- Testing Area
 -----------------------------
-
+{-
 data MyNat' : Type where
   MZ' : MyNat'
   MS' : MyNat' -> MyNat'
@@ -156,3 +165,4 @@ faf n = do
 
 -- I need a minimal example of reflected OrderedSet failing
 -- I also need to see if Elab, or Reflect/Reify, is left biased
+-}

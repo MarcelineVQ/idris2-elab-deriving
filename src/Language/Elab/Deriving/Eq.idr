@@ -12,6 +12,30 @@ import Data.Strings -- fastAppend
 
 %language ElabReflection -- you can remove this once %runElab is no longer used in this module
 
+getSigmaArgs : TTImp -> Elab (TTImp, TTImp)
+getSigmaArgs `(MkDPair {a= ~(_) } {P= ~(_) } ~rhsTy ~lhs) = pure (rhsTy, lhs)
+getSigmaArgs arg = fail $ "Not a sigma constructor"
+
+{-
+
+quoteHead calls quoteArgs
+quoteArgs calls quoteGenNF and evalClosure so it's a bit of a hog
+quoteGenNF calls quoteArgs
+
+
+quoteGenNF
+quoteArgs
+evalClosure
+eval
+define Normalise-Core-eval (lambda (arg-0 arg-1 arg-2 arg-3 arg-4 arg-5 arg-6 arg-7) (let ((sc0 arg-6)) (case (vector-ref sc0 0) ((0) (
+
+Core.apply
+
+-}
+
+
+
+
 -- A regular isntance might look like (Show a, Show b, Show c) => ...
 -- This pairing isn't actually neccesary, it's just notational convenience and
 -- we don't really have a reason to emulate it.
@@ -39,7 +63,8 @@ eqCon op (conname, args, contype) = do
         rhs = makeRhs (zip (catMaybes pats1) (catMaybes pats2))
     pure $ patClause lhs rhs
   where
-    -- make our pat vars, we use Maybe to flag the vars we want to use, we leave indices alone since they need to share their name
+    -- make our pat vars, we use Maybe to flag the vars we want to use, we leave
+    -- indices alone since they need to share their name
     makePatVars : List ArgInfo
                -> (List (Maybe ArgInfo), List (Maybe ArgInfo))
     makePatVars [] = ([],[])
@@ -181,7 +206,7 @@ data Foo6' : Type -> Type -> Type -> MyNat -> Type where
   Wah6'  : a -> (n : MyNat) -> Foo6' a b c n
   Kah6'  : a -> (n : MyNat) -> (0 _ : c) -> Foo6' a b c n
   Pah6'  : a -> (n : MyNat) -> MyNat -> (0 _ : c) -> Foo6' a b c n
-  Rah6'  : a -> (n : MyNat) -> Foo6' a b c n -> MyNat -> (0 _ : c) -> Foo6' a b c n -> Foo6' a b c n
+  -- Rah6'  : a -> (n : MyNat) -> Foo6' a b c n -> MyNat -> (0 _ : c) -> Foo6' a b c n -> Foo6' a b c n
   -- Gah6'  : {1 _ : a} -> (n : MyNat) -> MyNat -> (0 _ : c) -> Foo6' a b c n
   -- ^ another case to consider, what if I'm implicit but M1?
   -- Seems like an error would be appropriate there rather than showing
@@ -191,7 +216,7 @@ data Foo6' : Type -> Type -> Type -> MyNat -> Type where
 -- eqImplFoo6'Fun (Wah6' 'c' MZ) (Wah6' 'c' MZ)
 -- eqImplFoo6'Fun (Nor6A' {n=MZ} 'c' 'd' 'e')
 
--- eqImplFoo6Fun {b=Int} {c=String} (Wah6 'c' (S Z)) (Wah6 'c' (S Z))
+-- eqImplFoo6Fun (Wah6 {b=Int} {c=String} 'c' (S Z)) (Wah6 'c' (S Z))
 
 -- reference impl
 -- NB We need to use n twice, Eq is not dependent, two values of `a` compared
@@ -228,10 +253,11 @@ data FooN : MyNat -> Type -> Type where
 %runElab deriveEq Private `{{Foo7}}
 %runElab deriveEq Private `{{Foo7'}}
 %runElab deriveEq Private `{{FooN}}
--- ^ this whole block is 5 secs
+-- -- ^ this whole block is 5 secs
 %runElab deriveEq Private `{{Foo6}} -- 5 secs alone wow
 
 -- %runElab deriveEq Export  `{{Foo6'}} -- exponentially larger, why
+
 
 
 -- Demonstrating the problem in interface type inferring:
