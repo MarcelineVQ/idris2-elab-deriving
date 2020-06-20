@@ -21,3 +21,5 @@ import Language.Reflection
 -- to write up instances ourselves when the type we wrap has an instance.
 
 -- deriving via would be neat too, how do?
+
+-- derive functor, and applicative and monad

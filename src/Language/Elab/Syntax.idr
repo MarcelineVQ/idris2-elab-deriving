@@ -42,14 +42,17 @@ export
 iApp' : String -> TTImp -> TTImp -> TTImp
 iApp' s = IApp (namedFC s)
 
+export
+iImplicitApp : TTImp -> Maybe Name -> TTImp -> TTImp
+iImplicitApp = IImplicitApp EmptyFC
 
 export
 implicit' : TTImp
 implicit' = Implicit EmptyFC True
 
 export
-implicit'' : String -> TTImp
-implicit'' s = Implicit (namedFC s) True
+implicit'' : TTImp
+implicit'' = Implicit EmptyFC False
 
 export
 patClause : (lhs : TTImp) -> (rhs : TTImp) -> Clause
@@ -89,6 +92,16 @@ export
 iLam : Count -> PiInfo TTImp -> Maybe Name ->
       (argTy : TTImp) -> (lamTy : TTImp) -> TTImp
 iLam = ILam EmptyFC
+
+export
+iLet : Count -> Name -> (nTy : TTImp) -> (nVal : TTImp)
+    -> (scope : TTImp) -> TTImp
+iLet = ILet EmptyFC
+
+export
+iCase : TTImp -> (ty : TTImp)
+     -> List Clause -> TTImp
+iCase = ICase EmptyFC
 
 export
 iDef : Name -> List Clause -> Decl
@@ -152,6 +165,9 @@ mapName f (MN n i) = (MN (f n) i)
 mapName f (NS ns n) = (NS ns (mapName f n))
 mapName f (DN n realn) = (DN (f n) realn)
 mapName f (RF n) = RF (f n)
+mapName f (Nested ix n) = Nested ix (mapName f n)
+mapName f (CaseBlock outer inner) = CaseBlock outer inner
+
 
 export
 extractNameStr : Name -> String
@@ -160,6 +176,7 @@ extractNameStr (MN x y) = x
 extractNameStr (NS xs x) = extractNameStr x
 extractNameStr (DN x _) = x
 extractNameStr (RF x) = x
+extractNameStr _ = "" -- TODO change
 
 export
 extractNameNo : Name -> Int

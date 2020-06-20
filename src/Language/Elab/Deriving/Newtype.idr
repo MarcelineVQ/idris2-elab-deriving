@@ -17,89 +17,21 @@ import Util
 -- Visibility is controlled by the user because this makes it easy enough to
 -- have instances that we might want to derive them just for a private use.
 
--- What we do is first ensure we have a newtype, then an appropriate interface,
--- and we reflect a %search of the type our newtype wraps then type-coerce it.
-
--- This is a bit scummy compared to honest elaboration but forgive me, it works,
--- I don't quite have a method to grab the implementation of something like
--- :printdef does or a methd of run a search _in elaboration_ and while I can
--- 'quote' a completed %search, e.g.
--- res <- quote $ the (Eq Int) %search
--- I'd have to give it a resolved type to search (not a variable) and I'm not
--- sure how to do that programatically.
--- What we have here works but it doesn't make for super nice expressions
--- because newtypes aren't erased down until compile-time. I still want to
--- 
-
 %language ElabReflection
 
-foo : (sometype : TTImp) -> (iname : Name) -> Elab ()
-foo sometype iname  = do
-    let h = %runElab check goodExpr
-    -- let i = %runElab check badExpr -- comment me to see the logged output
-    logMsg  1 $ "interface: " ++ show iname
-    logTerm 1 "type" $ sometype
-    logTerm 1 "gt" goodType -- Exactly the same!
-    logTerm 1 "bt" badType  -- Exactly the same!
-    logTerm 1 "ge" goodExpr -- Exactly the same.
-    logTerm 1 "be" badExpr  -- Exactly the same.
-    
-    r <- quote h
-    logTerm 1 "r" r -- A check to see we really reflected a completed search
-                    -- And that we don't just have a TTImp of ISearch
-    pure ()
-  where
-    goodType : TTImp
-    goodType = `(Prelude.Ord Int)
-
-    goodExpr : TTImp
-    goodExpr = `(the ~(goodType) %search)
-
-    -- This will say "Can't reify as TTImp" if I don't give it a type signature,
-    -- now instead this will say "Can't reify as Name"
-    badType : TTImp
-    badType = `(~(IVar EmptyFC iname) ~(sometype))
-
-    badExpr : TTImp
-    badExpr = `(the (~(badType)) %search)
-
-%runElab foo `(Int) `{{Prelude.Ord}}
-
-
-
-
-
-bop : TTImp
-bop = `(Prelude.Ord Int)
-
-bep : TTImp
-bep = `(the ~(bop) %search)
-
-frap : Elab ()
-frap = do
-  -- j <- check bep
-  let h = %runElab check bep
-  -- logTerm 1 "bep" bep
-  -- r <- quote j
-  r2 <- quote h
-  -- logTerm 1 "j" r
-  logTerm 1 "j2" r2
-  pure ?psdfsd
-
-%runElab frap
 
 -- A more specific List for holding interface identifiers.
 -- Interface identifiers are hardly ever going to be simply Type so if we want
--- to collect them we need to track their type.
+-- to collect them we need to hold their type.
 data IList : List Type -> Type where
   Nil : IList []
   (::) : (x : r) -> IList rs -> IList (r :: rs)
 
 -- Convert our list of interfaces to qualified Names, vet them at the same time
 -- for suitability for deriving. This might be the wrong place to do this check.
-collectIList : IList xs -> Elab (List Name)
-collectIList [] = pure []
-collectIList (i :: is) = do
+collectIList' : IList xs -> Elab (List (Name, (Name, List ArgInfo, TTImp)))
+collectIList' [] = pure []
+collectIList' (i :: is) = do
     IVar _ w <- quote i
       | _ => fail "Error with reflecting interface name in collectIList."
 
@@ -116,7 +48,7 @@ collectIList (i :: is) = do
                ++ " It has more than one constructor. " ++
                   "Interfaces are essentialy records of fields."
     
-    pure $ tyinfo.name :: !(collectIList is)
+    pure $ (tyinfo.name, singlecon) :: !(collectIList' is)
   where
     notApro : Name -> String
     notApro n
@@ -128,9 +60,12 @@ collectIList (i :: is) = do
         go (IPi _ _ ExplicitArg _ _ retTy) = 1 + go retTy
         go (IPi _ _ _ _ _ retTy) = go retTy
         go _ = 0
-    
+
 data Foo : Type where
   MkFoo : Int -> Foo
+
+data Foo2 : Type -> Type where
+  MkFoo2 : a -> Foo2 a
 
 interface Fez r where
   fezfo1 : r -> r -> r
@@ -147,12 +82,17 @@ interface Monad a => Fez2 a (r : Type) where
   -- fezfo22 : r -> r
 
 interface Gorp2 a where
-  -- constructor MkGorp2
-  fap : a -> Int -> a -> Bool
+  constructor MkGorp2
+  fap : a -> (named : Int) -> a -> Bool
   fapo : Bool -> (1 x : a) -> Char -> a
   ofap : (0 _ : a) -> Char
   o : a
   p : Char
+  q : Foo2 Bool
+
+interface Gorp3 a (b : Nat) where
+  constructor MkGorp3
+  p2 : a -> Char
 
 Gorp2 Int where
   fap x i y = x == i
@@ -161,27 +101,135 @@ Gorp2 Int where
   o = 9
   p = 'p'
 
+record Wok a where
+  constructor MkWok
+  bopa : a -> Int
+  fifw : Int -> Char -> a
+
+record Poo where
+  constructor Wup
+  bop : Int
+  fif : Int -> Char
+
+export
+interface MyEq a where
+  constructor MkMyEq
+  eq : a -> a -> Bool
+  neq : a -> a -> Bool
+
+MyEq Int where
+  eq x y = x == y
+  neq x y = x /= y
+
+%hint
+fooMyEq : MyEq Foo
+fooMyEq = MkMyEq (\(MkFoo x),(MkFoo y) => eq x y) (\(MkFoo x),(MkFoo y) => neq x y)
+
+interface Gaffer where
+  constructor Gaf
+-- Gaf : Language.Elab.Deriving.Newtype.Gaffer
+
+-- this is where we accum our parameters, split up the fields
+-- collect our arg type names then
+-- spider along and make left pi args into fields
+-- our return type is the deciding parameter name and a list of fields
+separateFields : TTImp -> Elab (Name, List (Name, TTImp))
+separateFields (IPi _ _ ImplicitArg (Just det) (IType _) retTy) = do
+    fs <- sepFields retTy
+    pure $ (det, fs)
+  where
+    sepFields : TTImp -> Elab (List (Name, TTImp))
+    sepFields (IPi _ _ _ name0 argTy retTy) = do
+      Just name <- pure name0
+        | _ => fail "Unexpected empty field name."
+      rest <- sepFields retTy
+      pure $ (name,argTy) :: rest
+    sepFields retTy = pure []
+separateFields _ = fail "Interface has the wrong shape."
+
+-- I'm having issue with taking an arg at a time, take all the args then case
+-- one at a time
+ntWrapField : (ntty : TTImp) -> (ntcon : Name) -> (wrappedty : TTImp)
+           -> (det : Name) -> (fname : Name) -> (fimp : TTImp) -> Elab TTImp
+ntWrapField ntty ntcon wrappedty det fname fimp = do
+    let g = `(\(MkFoo x),(MkFoo y) => x == y) 
+    logTerm 1 "fsfd" g
+    pure $ `(\(MkFoo x),(MkFoo y) => x == y)
+    res <- mkFun fimp
+    logTerm 1 "res" res
+    pure res
+  where
+    isWrappedType : TTImp -> Bool
+    isWrappedType (IVar _ n) = n == det
+    isWrappedType _ = False
+    
+    mkLam : List Name -> TTImp -> Elab TTImp
+    mkLam ns (IPi _ c ExplicitArg nam argTy retTy) = do
+      argname <- genSym "lam"
+      let lamhead = iLam c ExplicitArg (Just argname)
+      if  isWrappedType argTy
+        then do
+          argname' <- readableGenSym "lamc"
+          cont <- mkLam (argname' :: ns) retTy
+          pure $ lamhead implicit'' $ iCase (iVar argname) implicit''
+                [patClause `( ~(iVar ntcon) ~(bindNameVar argname')) cont]
+        else pure $ lamhead implicit'' !(mkLam (argname :: ns) retTy)
+    mkLam ns (IPi _ _ _ _ _ retTy) = mkLam ns retTy
+    -- Apply our field name to our collected args, we check the return
+    -- type, since if it is wrapper type we should be wrapping the expression
+    mkLam ns retTy = do
+      let appedifacecon = IImplicitApp EmptyFC (iVar fname) (Just det) wrappedty
+      -- let appedifacecon = (iVar fname)
+      let body = foldr (\n,tt => tt `iApp` bindNameVar n) appedifacecon ns
+      pure $ if isWrappedType retTy
+        then iVar ntcon `iApp` body
+        else body
+    -- mkCases : List Name -> TTImp
+    -- If our field type has no argument, check if we should wrap the result type
+    mkFun : TTImp -> Elab TTImp
+    mkFun (IVar _ n) = pure $ if n == n then iVar ntcon `iApp` iVar fname else iVar fname
+    mkFun pi@(IPi _ _ _ _ _ _) = mkLam [] pi
+    mkFun _ = pure $ iVar fname
+
+
+-- Derive via taking an object and spidering it, we can't get an instance object
+-- programatically yet but it's probably a bug that we can't, so let's bet on
+-- that changging.
+-- We need the ntname, ntcontypimpl, iface name, iface conname, iface objimpl
 deriveGeneralImpl : (ntname : Name) -> (nttype : TTImp) -> Visibility
-                 -> (wrappedtype : TTImp) -> (iname : Name) -> Elab ()
-deriveGeneralImpl ntname nttype vis wrappedty iname  = do
+                 -> (ntcon : Name) -> (wrappedtype : TTImp) -> (Name, (Name, List ArgInfo, TTImp)) -> Elab ()
+deriveGeneralImpl ntname nttype vis ntcon wrappedty (iname,icon)  = do
   let defname = UN ("ntImpl_" ++ extractNameStr ntname ++ extractNameStr iname)
       hty = mkTy defname (iVar iname `iApp` nttype)
       head = iClaim MW vis [Hint True] hty
-  logDecls 1 "implhead" [head]
+  -- logDecls 1 "implhead" [head]
+  (_,impl) <- lookupName iname
+  fillty <- makeTypeInfo iname
+  [arg] <- pure fillty.args
+    | _ => fail "badshape"
+  (_,conimp) <- lookupName icon.one
+    | _ => fail "sdfsdf"
+  (det,fields) <- separateFields conimp
+  wrappedfs <- traverse (\(fname,imp) => ntWrapField nttype ntcon wrappedty det fname imp) fields
   
-  -- What if I make my lambda for my type..
-  -- No, because I need to know the arg count
+  logTerm 1 "nttype" nttype
+  -- let appedifacecon = IImplicitApp EmptyFC (iVar icon.one) (Just det) nttype
+  let appedifacecon = (iVar icon.one)
+  let cac = foldl (\tt,f => tt `iApp` f) appedifacecon wrappedfs
+  logTerm 1 "impl" conimp
+  
+  
+  let def = iDef defname [patClause (iVar defname) cac]
+  
+  logDecls 1 "def" [head,def]
+  
+  declare [head,def]
+  
+  pure ()
 
-  -- Is this %search repeated every call to our implementation? How do I do this
-  -- search _in elaboration_ ?
-  let left = iVar defname
-      right = `(believe_me $ the (~(iVar iname `iApp` wrappedty)) %search)
-      pat = patClause left right
-      body = iDef defname [pat]
-  logDecls 1 "implbody" [body]
-  
-  declare [head, body]
-  
+
+-- we determine if we have a newtype constructor ourselves but we could just ask
+-- idris as well since that info is in the Context
 newtypeDerive : Name -> Visibility -> (ifaces : IList ts) -> Elab ()
 newtypeDerive n vis ilist = do
     -- We need to very carefully check ifsomething is a newtype, otherwise we've
@@ -195,25 +243,29 @@ newtypeDerive n vis ilist = do
       | _ => fail notNT
 
     -- Here we validate our list of interfaces
-    ns@(_::_) <- collectIList ilist
+    ns@(_::_) <- collectIList' ilist
       | [] => fail "Interface list for deriving was empty."
 
     -- traverseE (deriveSpecialImpl ...) ns
     -- ^ things like Show should farm out to Show deriving
 
-    traverseE (deriveGeneralImpl n typeinfo.type vis arg.type) ns
+    traverseE (deriveGeneralImpl n typeinfo.type vis con.one arg.type) ns
 
     pure ()
   where
     notNT : String
     notNT = extractNameStr n ++ " is not a newtype. A newtype has exactly one
                                   constructor with exactly one used field."
-
-%runElab newtypeDerive `{{Foo}} Private [Gorp2, Eq, Ord]
+ 
+%runElab newtypeDerive `{{Foo}} Private [Eq]
+-- %runElab newtypeDerive `{{Foo}} Private [Gorp2, Eq, Ord]
+-- %runElab newtypeDerive `{{Foo}} Private [Eq, Ord]
 
 -- ntElim_Foo : (x : Foo) -> MkFoo x = x
 -- ntElim_Foo x = ?laf_rhs
 
+-- <int-e> @let ifM b t f = b >>= \b' -> if b' then t else f
+-- <int-e> :t ifM even negate (const 0)
 
 lef : Ord Int
 lef = %search
@@ -222,9 +274,6 @@ rer : Ord Foo
 rer = let r = the (Ord Int) %search
       in ?SDFfds
 
-beb : (MkFoo 3 == MkFoo 9) = (the Int 3 == 9)
-beb = ?beb_rhs
-
 -----------------------------
 -- Testing
 -----------------------------
@@ -232,8 +281,8 @@ beb = ?beb_rhs
 data Foo1 : Type where -- newtype, one con, one used field
   MkFoo1 : Int -> Foo1
 
-data Foo2 : Type where 
-  MkFoo2 : Char -> Int -> Foo2 -- not nt, two used fields
+-- data Foo2 : Type where 
+  -- MkFoo2 : Char -> Int -> Foo2 -- not nt, two used fields
 
 data Foo3 : Type -> Type where -- newtype
   MkFoo3 : Int -> Foo3 a
