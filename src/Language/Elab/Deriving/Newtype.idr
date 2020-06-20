@@ -148,16 +148,12 @@ separateFields (IPi _ _ ImplicitArg (Just det) (IType _) retTy) = do
 separateFields _ = fail "Interface has the wrong shape."
 
 -- I'm having issue with taking an arg at a time, take all the args then case
--- one at a time
+-- one at a time.
+-- TODO, this works, so clean it up majorly.
+-- NB implicit'' which might be nice to use elsewhere too
 ntWrapField : (ntty : TTImp) -> (ntcon : Name) -> (wrappedty : TTImp)
            -> (det : Name) -> (fname : Name) -> (fimp : TTImp) -> Elab TTImp
-ntWrapField ntty ntcon wrappedty det fname fimp = do
-    let g = `(\(MkFoo x),(MkFoo y) => x == y) 
-    logTerm 1 "fsfd" g
-    pure $ `(\(MkFoo x),(MkFoo y) => x == y)
-    res <- mkFun fimp
-    logTerm 1 "res" res
-    pure res
+ntWrapField ntty ntcon wrappedty det fname fimp = mkFun fimp
   where
     isWrappedType : TTImp -> Bool
     isWrappedType (IVar _ n) = n == det
@@ -180,7 +176,7 @@ ntWrapField ntty ntcon wrappedty det fname fimp = do
     mkLam ns retTy = do
       let appedifacecon = IImplicitApp EmptyFC (iVar fname) (Just det) wrappedty
       -- let appedifacecon = (iVar fname)
-      let body = foldr (\n,tt => tt `iApp` bindNameVar n) appedifacecon ns
+      let body = foldr (\n,tt => tt `iApp` iVar n) appedifacecon ns
       pure $ if isWrappedType retTy
         then iVar ntcon `iApp` body
         else body
@@ -202,7 +198,6 @@ deriveGeneralImpl ntname nttype vis ntcon wrappedty (iname,icon)  = do
   let defname = UN ("ntImpl_" ++ extractNameStr ntname ++ extractNameStr iname)
       hty = mkTy defname (iVar iname `iApp` nttype)
       head = iClaim MW vis [Hint True] hty
-  -- logDecls 1 "implhead" [head]
   (_,impl) <- lookupName iname
   fillty <- makeTypeInfo iname
   [arg] <- pure fillty.args
@@ -212,15 +207,9 @@ deriveGeneralImpl ntname nttype vis ntcon wrappedty (iname,icon)  = do
   (det,fields) <- separateFields conimp
   wrappedfs <- traverse (\(fname,imp) => ntWrapField nttype ntcon wrappedty det fname imp) fields
   
-  logTerm 1 "nttype" nttype
-  -- let appedifacecon = IImplicitApp EmptyFC (iVar icon.one) (Just det) nttype
-  let appedifacecon = (iVar icon.one)
-  let cac = foldl (\tt,f => tt `iApp` f) appedifacecon wrappedfs
-  logTerm 1 "impl" conimp
-  
-  
-  let def = iDef defname [patClause (iVar defname) cac]
-  
+  let cac = foldl (\tt,f => tt `iApp` f) (iVar icon.one) wrappedfs
+      def = iDef defname [patClause (iVar defname) cac]
+
   logDecls 1 "def" [head,def]
   
   declare [head,def]
