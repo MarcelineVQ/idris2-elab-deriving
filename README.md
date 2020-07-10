@@ -1,6 +1,9 @@
 Elab Deriving (bad name, pick better)
 =====
 
+Dev for this is on hold for a bit until working in Elab gets faster, it's not taking all that much to be too much time taken when working in Elab.
+-----
+
 This is a package for deriving implementations of common functions and interfaces in [Idris2](https://github.com/idris-lang/Idris2). It's intended to alleviate the tedium of writing your own instances, especially for things like newtypes which is just a whole lot of copypasting of wrapping.
 
 It's pretty basic just now but so is elaborator reflection.
