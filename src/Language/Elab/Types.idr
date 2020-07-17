@@ -14,11 +14,13 @@ import Util
 -- I'm not sure why, as giving traverse a more specific type alone doens't help,
 -- I think maybe it's just that we're not using concatMap
 export
+-- %inline
 traverseE : (a -> Elab b) -> List a -> Elab (List b)
 traverseE f [] = pure []
 traverseE f (x :: xs) = f x >>= \b => (b ::) <$> traverseE f xs
 
 export
+-- %inline
 forE : List a -> (a -> Elab b) -> Elab (List b)
 forE xs f = traverseE f xs
 
@@ -73,7 +75,9 @@ indexOf _ _ = False
 
 -- workhorse of the module, though you'll tend to use it through makeTypeInfo
 -- If an argument doesn't have a name we generate one for it, this simplifies
--- use of names. TODO: revisit this decision
+-- use of names. That being said idris (with PR 337) should have already
+-- generated names for everything so this shouldn't come up often.
+-- TODO: revisit this decision
 export
 getConType : Name -> Elab (List ArgInfo, TTImp)
 getConType qn = go (snd !(lookupName qn))
@@ -81,10 +85,10 @@ getConType qn = go (snd !(lookupName qn))
     go : TTImp -> Elab (List ArgInfo, TTImp)
     go (IPi _ c i n0 argTy retTy0) = do
       (xs,retTy1) <- go retTy0
-      let n1 = maybe !(readableGenSym "arg") id n0
+      let n1 = maybe !(genSym "arg") id n0
+      logMsg 1 "compute"
       let b = not (isType argTy) && maybe False (`indexOf`retTy1) n0
       pure $ (MkArgInfo c i n1 argTy b :: xs, retTy1)
-      
     go retTy = pure ([],retTy)
 
 -- makes them unique for now
@@ -100,6 +104,7 @@ genArgs qn = do (_,tyimp) <- lookupName qn
     go _ = pure []
 
 
+-- TODO try making this explicitly to reduce quoting
 -- Takes String so that you can process the names as you like
 -- NB: Likely to change
 export
@@ -114,6 +119,9 @@ export
 pullImplicits : TypeInfo -> List ArgInfo
 pullImplicits x = filter (isImplicitPi . piInfo) (args x)
 
+argnam : ArgInfo -> Name
+argnam (MkArgInfo count piInfo name type isIndex) = name
+
 -- not bad start, we might try not renaming here, make names at use-site?
 export
 makeTypeInfo : Name -> Elab TypeInfo
@@ -122,6 +130,7 @@ makeTypeInfo n = do
   args <- genArgs n
   connames <- getCons tyname
   conlist <- traverse getConType connames
+  logMsg 1 "I'm being computed"
   let tyargs = filter (isExplicitPi . piInfo) args
       ty = appTyCon (map (\arg => extractNameStr  arg.name) tyargs) tyname
   pure $ MkTypeInfo tyname args (zip connames conlist) ty
@@ -131,38 +140,56 @@ makeTypeInfo n = do
 -----------------------------
 -- Testing Area
 -----------------------------
-{-
+-- {-
 data MyNat' : Type where
   MZ' : MyNat'
   MS' : MyNat' -> MyNat'
 
 -- Time making this is directly related to arg count
-data Foo6 : Type -> Type -> Type -> Nat -> Type where
-  Zor6 : a -> b -> Foo6 a b c Z
-  Gor6 : b -> Foo6 a b c (S k)
-  Nor6A : a -> b -> c -> c -> c -> c -> (n : Nat) -> Foo6 a b c n
-  Nor6B : a -> (0 _ : b) -> c -> Foo6 a b c n -- NB: 0 Use arg
-  Bor6 : Foo6 a b c n
-  Wah6 : a -> (n : Nat) -> Foo6 a b c n
+data Foo6'' : Type -> Type -> Type -> Nat -> Type where
+  Zor6'' : a -> b -> Foo6'' a b c Z
+  Gor6'' : b -> Foo6'' a b c (S k)
+  Nor6A'' : a -> b -> c -> c -> c -> c -> (n : Nat) -> Foo6'' a b c n
+  Nor6B'' : a -> (0 _ : b) -> c -> Foo6'' a b c n -- NB: 0 Use arg
+  Bor6'' : Foo6'' a b c n
+  Wah6'' : a -> (n : Nat) -> Foo6'' a b c n
 
-faf : Name -> Elab ()
-faf n = do
-  tyinfo <- makeTypeInfo n
-  -- nested traverse seems real slow
-  let conargs = pullExplicits tyinfo
-  let params = map (extractNameStr . name) $ filter (not . isIndex) conargs
-  let params' = map (extractNameStr . name) $ conargs
-  logMsg 1 "indexes"
-  traverseE (\(n,a,imp) => traverseE (logMsg 1 . show) . filter (isIndex) $ a) tyinfo.cons
-  logMsg 1 $ show params
-  logMsg 1 $ show params'
-
-  -- traverseE (\(n,a,imp) => traverseE (logMsg 1 . show) $ a) tyinfo.cons
-  -- traverseE (\(n,a,imp) => traverseE (logMsg 1 . show) $ a) tyinfo.cons
+-- This is an issue because elaboration on datatypes requires many traverersals,
+-- of the types, the constructors, building up results etc.
+-- logMsg is set to 12 because we're not interested in executing it, it's just
+-- an easy placeholder
+faf : Elab ()
+faf = do
+  -- Each additional line is exponentially slower than the last
+  -- this happens with a simpler line like
+  -- traverse (logMsg 12 . show) [the Int 1..10]
+  -- but these double traversals take less lines to demonstrate it.
+  traverse (traverse (logMsg 12 . show)) [[the Int 1..10]] -- minor difference
+  traverse (traverse (logMsg 12 . show)) [[the Int 1..10]] -- minor difference
+  traverse (traverse (logMsg 12 . show)) [[the Int 1..10]] -- minor difference
+  traverse (traverse (logMsg 12 . show)) [[the Int 1..10]] -- minor difference
+  traverse (traverse (logMsg 12 . show)) [[the Int 1..10]] -- minor difference
+  traverse (traverse (logMsg 12 . show)) [[the Int 1..10]] -- minor difference
+  traverse (traverse (logMsg 12 . show)) [[the Int 1..10]] -- 0.3s
+  traverse (traverse (logMsg 12 . show)) [[the Int 1..10]] -- 0.4s
+  traverse (traverse (logMsg 12 . show)) [[the Int 1..10]] -- 0.5s
+  
+  -- Traversal time appreciatbly accelerates
+  traverse (traverse (logMsg 12 . show)) [[the Int 1..10]] -- 1.5s
+  traverse (traverse (logMsg 12 . show)) [[the Int 1..10]] -- 4s
+  traverse (traverse (logMsg 12 . show)) [[the Int 1..10]] -- 13s
+  
+  -- Gets out of hand here
+  -- traverse (traverse (logMsg 12 . show)) [[the Int 1..10]]
+  
   pure ()
-
--- %runElab faf `{{Foo6}}
+  
+%runElab faf
+ 
+-- possible clock error
+-- logtimerecord' should accrue but logtime should not
+  
 
 -- I need a minimal example of reflected OrderedSet failing
 -- I also need to see if Elab, or Reflect/Reify, is left biased
--}
+-- -}

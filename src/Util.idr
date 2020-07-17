@@ -3,6 +3,8 @@ module Util
 import Language.Reflection.TT
 import Language.Reflection.TTImp
 
+-- %language PostfixProjections
+
 infixl 1 <&>
 export
 (<&>) : Functor f => f a -> (a -> b) -> f b
@@ -58,13 +60,20 @@ export
 -- useful for working with TypeInfo cons without having a type just for that
 -- Really we should just give cons its own type.
 export
-(.one) : (a,b,c) -> a
-(.one) (x, (y, z)) = x
+one : (a,b,c) -> a
+one (x, (y, z)) = x
 
 export
-(.two) : (a,b,c) -> b
-(.two) (x, (y, z)) = y
+two : (a,b,c) -> b
+two (x, (y, z)) = y
 
 export
-(.three) : (a,b,c) -> c
-(.three) (x, (y, z)) = z
+three : (a,b,c) -> c
+three (x, (y, z)) = z
+
+export
+Range Char where
+  rangeFromTo x y = map cast [cast x .. cast y] {a=Int}
+  rangeFromThenTo x y z = map cast [cast x, cast y .. cast z] {a=Int}
+  rangeFrom x = map cast [cast x ..] {a=Int}
+  rangeFromThen x y = map cast [cast x, cast y..] {a=Int}

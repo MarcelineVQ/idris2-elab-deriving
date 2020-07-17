@@ -119,6 +119,10 @@ iPrimVal' s = IPrimVal (namedFC s)
 -- test this, possibly using InCurrentNS, it's unclear whether the name results
 -- list will return useful info or how namespaces affect it.
 -- Fetch fully qualified name and ttinfo.
+-- TODO intersperse instead of concatmap
+-- TODO This currently seems to detect names in other modules that arne't
+-- actually exported, so I need to also check the visibility of the names this
+-- finds.
 export
 lookupName : Name -> Elab (Name, TTImp)
 lookupName n = do
@@ -164,10 +168,8 @@ mapName f (UN n) = UN (f n)
 mapName f (MN n i) = (MN (f n) i)
 mapName f (NS ns n) = (NS ns (mapName f n))
 mapName f (DN n realn) = (DN (f n) realn)
-mapName f (RF n) = RF (f n)
-mapName f (Nested ix n) = Nested ix (mapName f n)
-mapName f (CaseBlock outer inner) = CaseBlock outer inner
-
+-- mapName f (Nested ix n) = Nested ix (mapName f n)
+-- mapName f (CaseBlock outer inner) = CaseBlock outer inner
 
 export
 extractNameStr : Name -> String
@@ -175,8 +177,6 @@ extractNameStr (UN x) = x
 extractNameStr (MN x y) = x
 extractNameStr (NS xs x) = extractNameStr x
 extractNameStr (DN x _) = x
-extractNameStr (RF x) = x
-extractNameStr _ = "" -- TODO change
 
 export
 extractNameNo : Name -> Int
@@ -216,7 +216,9 @@ showName n = let s = extractNameStr n
 
 export
 bindNameVar : Name -> TTImp
-bindNameVar = iBindVar  . show
+bindNameVar = iBindVar . extractNameStr
+
+-- bindNameVar = iBindVar  . show
 
 -----------------------------
 -- Predicates
