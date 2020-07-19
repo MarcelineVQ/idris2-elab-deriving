@@ -35,18 +35,16 @@ data Foo7' : Type -> Type -> Type -> Type where
   Nor7' : b -> c -> Foo7' a b c
   Bor7' : Foo7' a b c
 
+  -- we'll use our own nat for index experimentation
 export
 data MyNat : Type where
   MZ : MyNat
   MS : MyNat -> MyNat
--- we'll use our own nat for index experimentation
--- 
+ 
 -- Eq MyNat where
 --   MZ == MZ = True
 --   (MS x) == (MS y) = x == y
 --   _ == _ = False
-
--- %runElab deriveEq Private `{{MyNat}}
 
 data Foo6 : Type -> Type -> Type -> Nat -> Type where
   Zor6 : a -> b -> Foo6 a b c Z
@@ -115,7 +113,5 @@ data FooN : MyNat -> Type -> Type where
 %runElab deriveEq Private `{{Foo7}}
 %runElab deriveEq Private `{{Foo7'}}
 %runElab deriveEq Private `{{FooN}}
--- -- ^ this whole block is 5 secs
-%runElab deriveEq Private `{{Foo6}} -- 5 secs alone wow
-
-%runElab deriveEq Export  `{{Foo6'}} -- exponentially larger, why
+%runElab deriveEq Private `{{Foo6}}
+%runElab deriveEq Export  `{{Foo6'}}

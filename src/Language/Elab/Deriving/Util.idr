@@ -37,8 +37,6 @@ moduleNameElab = do
   pure (stringConcat . intersperse "." . reverse $ ns)
 
 
--- a0, b0, c0 .. a1,b1,c1 ..
-
 fef : (a -> b -> c) -> Stream a -> List b -> Stream (List c)
 fef f (x :: xs) ys = map (f x) ys :: fef f xs ys
 
@@ -48,11 +46,17 @@ rar ((x :: xs) :: xss) = x :: rar (xs :: xss)
 
 -- There's probably a better way to do this, I'm a little weak on how strictness
 -- works
+||| Provides an endless sequence of alphabet-grouped variable names
+||| [a0,b0..z0], [a1,b1..z1], ...
+export
+infAZVar : Stream (List String)
+infAZVar = let c = [0,1..] {a=Int}
+               d = ['a'..'z']
+           in fef (\x,y => strCons y "" ++ show x) c d
+
 ||| Provides an endless sequence of variable names
--- a0,b0..z0, a1,b1..z1, ...
+||| a0,b0..z0,a1,b1..z1,...
 export
 infVars : Stream String
-infVars = let c = [0,1..] {a=Int}
-              d = ['a'..'z']
-          in rar (fef (\x,y => strCons y "" ++ show x) c d)
+infVars = rar infAZVar
 

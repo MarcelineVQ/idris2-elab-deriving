@@ -38,7 +38,7 @@ collectIList' (i :: is) = do
     -- do a tentative check that we have a valid interface
     -- namely that we're dealing with a one-constructor type and that it has
     -- only one spot let to fill, since our type fills it
-    tyinfo <- makeTypeInfo w -- kinda slow
+    tyinfo <- makeTypeInfo w
     -- (qn,imp) <- lookupName w
     unless (length (filter (isExplicitPi . piInfo) tyinfo.args) == 1)
            $ fail $ (notApro tyinfo.name)
