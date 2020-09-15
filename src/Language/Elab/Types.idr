@@ -10,9 +10,7 @@ import Util
 
 -- Helper types for deriving more cleanly
 
--- traverseE beats the shit out of traverse for Elab for compile-time work
--- I'm not sure why, as giving traverse a more specific type alone doens't help,
--- I think maybe it's just that we're not using concatMap
+-- I don't really need this anymore due to Elab's performance improving
 export
 -- %inline
 traverseE : (a -> Elab b) -> List a -> Elab (List b)
@@ -126,6 +124,7 @@ argnam (MkArgInfo count piInfo name type isIndex) = name
 export
 makeTypeInfo : Name -> Elab TypeInfo
 makeTypeInfo n = do
+  logMsg 1 "bado"
   (tyname,tyimp) <- lookupName n
   args <- genArgs n
   connames <- getCons tyname
