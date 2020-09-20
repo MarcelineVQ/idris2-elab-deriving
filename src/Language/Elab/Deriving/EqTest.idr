@@ -1,10 +1,9 @@
 module Language.Elab.Deriving.EqTest
 
 import Language.Elab.Deriving.Eq
-
-import Language.Reflection
-
 %language ElabReflection
+
+-- Testing of elaborations all on their own. (At bottom.)
 
 export
 data Foo1 : Type -> Type where
@@ -20,7 +19,7 @@ data Foo4 : Type -> Type -> Type where
 data Foo5 : Type -> Type -> Type -> Type where
   Bor5 : a -> b -> c -> Foo5 a b c
 
--- NB c is never used, so Show shouldn't be required for it
+-- NB c is never used, so Eq shouldn't be required for it
 data Foo7 : Type -> Type -> Type -> Type where
   Zor7 : a -> Foo7 a b c
   Gor7 : b -> Foo7 a b c
@@ -28,7 +27,7 @@ data Foo7 : Type -> Type -> Type -> Type where
   Nor7B : a -> b -> c -> Foo7 a b c
   Bor7 : Foo7 a b c
 
--- NB a is never used, so Show shouldn't be required for it
+-- NB a is never used, so Eq shouldn't be required for it
 data Foo7' : Type -> Type -> Type -> Type where
   Zor7' : c -> Foo7' a b c
   Gor7' : b -> Foo7' a b c
@@ -41,11 +40,6 @@ data MyNat : Type where
   MZ : MyNat
   MS : MyNat -> MyNat
  
--- Eq MyNat where
---   MZ == MZ = True
---   (MS x) == (MS y) = x == y
---   _ == _ = False
-
 data Foo6 : Type -> Type -> Type -> Nat -> Type where
   Zor6 : a -> b -> Foo6 a b c Z
   Gor6 : b -> Foo6 a b c (S k)
@@ -82,9 +76,9 @@ data Foo6' : Type -> Type -> Type -> MyNat -> Type where
 -- NB We need to use n twice, Eq is not dependent, two values of `a` compared
 -- against each other must have the same indices. Which follows since if they
 -- don't they're obviously not equal.
--- if a con has no explicit, non-0, non-index, vars then it's empty, and thus
--- vauously true to compare to itself. only explicit, non-0, non-index vars need
--- to be compared. 0 values can't be used and index vars can't vary in an Eq
+-- if a con has no explicit, non-M0, non-index, vars then it's empty, and thus
+-- vauously true to compare to itself. only explicit, non-M0, non-index vars need
+-- to be compared. M0 values can't be used and index vars can't vary in an Eq
 -- definition
 eqFoo6 : (Eq a, Eq b, Eq c) => Foo6 a b c n -> Foo6 a b c n -> Bool
 eqFoo6 (Zor6 x1 y1) (Zor6 x2 y2) = x1 == x2 && y1 == y2
@@ -106,7 +100,7 @@ data FooN : MyNat -> Type -> Type where
   BorNB : (n : MyNat) -> b -> FooN n b
 
 %runElab deriveEq Export  `{{MyNat}}
-%runElab deriveEq Export  `{{Foo1}}
+%runElab deriveEq Export `{{Foo1}}
 %runElab deriveEq Export  `{{Foo2}}
 %runElab deriveEq Private `{{Foo4}}
 %runElab deriveEq Private `{{Foo5}}
@@ -115,3 +109,6 @@ data FooN : MyNat -> Type -> Type where
 %runElab deriveEq Private `{{FooN}}
 %runElab deriveEq Private `{{Foo6}}
 %runElab deriveEq Export  `{{Foo6'}}
+
+-- can check what's generated via
+-- :printdef eqImplFoo7'Fun

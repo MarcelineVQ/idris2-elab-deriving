@@ -28,13 +28,13 @@ private
 stringConcat : List String -> String
 stringConcat = fastAppend
 
-private
-moduleNameElab : Elab String
-moduleNameElab = do
-  [((NS ns _),_)] <- getType `{{moduleName}}
-    | [] => fail "moduleName is not in scope"
-    | _ => fail "moduleName is not unique in scope"
-  pure (stringConcat . intersperse "." . reverse $ ns)
+-- private
+-- moduleNameElab : Elab String
+-- moduleNameElab = do
+--   [((NS ns _),_)] <- getType `{{moduleName}}
+--     | [] => fail "moduleName is not in scope"
+--     | _ => fail "moduleName is not unique in scope"
+--   pure (stringConcat . intersperse "." . reverse $ ns)
 
 
 fef : (a -> b -> c) -> Stream a -> List b -> Stream (List c)

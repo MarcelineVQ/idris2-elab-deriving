@@ -188,7 +188,7 @@ export
 implementation Eq Name where
   (==) (UN x) (UN y) = x == y
   (==) (MN x z) (MN y w) = z == w && x == y
-  (==) (NS xs x) (NS ys y) = xs == ys && x == y
+  (==) (NS (MkNS xs) x) (NS (MkNS ys) y) = xs == ys && x == y
   (==) _ _ = False
 
 export
@@ -203,7 +203,7 @@ isImplicitPi _ = False
 
 export
 logDecls : Nat -> String -> List Decl -> Elab ()
-logDecls n s d = logTerm n s $ ILocal EmptyFC d `( () )
+logDecls n s d = logTerm "logDecls" n s $ ILocal EmptyFC d `( () )
 
 -- Turn a name into a string, add parens to an operator-like string
 export
@@ -269,4 +269,4 @@ printInterfaceCon n = do
   [NS _ (DN _ icon)] <- getCons qname
     | _ => fail $ "showObject: error during " ++ nstr ++ " constructor lookup"
   (_, objimp) <- lookupName icon
-  logTerm 1 (nstr ++ ": ") objimp
+  logTerm "printInterfaceCon" 1 (nstr ++ ": ") objimp

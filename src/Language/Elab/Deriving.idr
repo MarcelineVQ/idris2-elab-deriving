@@ -5,7 +5,7 @@ import Language.Reflection
 %language ElabReflection
 
 -- the handy regex for eliminating FC from tests: \(MkFC.+?\)\)\s
-
+-- another form: \(MkFC \"\(interactive\)\" \([\s\S]*?\) \([\s\S]*?\)\) 
 
 -- In Newtype the method being used is to create the implementation record only,
 -- as opposed to Show and Eq where we created the functions in the module scope

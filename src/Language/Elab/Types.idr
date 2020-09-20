@@ -10,19 +10,6 @@ import Util
 
 -- Helper types for deriving more cleanly
 
--- I don't really need this anymore due to Elab's performance improving
-export
--- %inline
-traverseE : (a -> Elab b) -> List a -> Elab (List b)
-traverseE f [] = pure []
-traverseE f (x :: xs) = f x >>= \b => (b ::) <$> traverseE f xs
-
-export
--- %inline
-forE : List a -> (a -> Elab b) -> Elab (List b)
-forE xs f = traverseE f xs
-
-
 -- A argument to a constructor along with additional relation data like whether it's an index of the type
 public export
 record ArgInfo where
@@ -48,8 +35,8 @@ Show ArgInfo where
 export
 logArgInfo : Nat -> ArgInfo -> Elab ()
 logArgInfo n (MkArgInfo count piInfo name type isIndex) = do
-  logMsg n $ "MkArgInfo " ++ show count ++ " " ++ show piInfo ++ " " ++ showPrec App name
-  logTerm n "argimp: " type
+  logMsg "logArgInfo" n $ "MkArgInfo " ++ show count ++ " " ++ show piInfo ++ " " ++ showPrec App name
+  logTerm "logArgInfo" n "argimp: " type
 
 -- Fully qualified Name
 -- `type` is our fully applied type, e.g. given args a,b,c: Foo a b c
@@ -84,7 +71,7 @@ getConType qn = go (snd !(lookupName qn))
     go (IPi _ c i n0 argTy retTy0) = do
       (xs,retTy1) <- go retTy0
       let n1 = maybe !(genSym "arg") id n0
-      logMsg 1 "compute"
+      logMsg "getConType" 1 "compute"
       let b = not (isType argTy) && maybe False (`indexOf`retTy1) n0
       pure $ (MkArgInfo c i n1 argTy b :: xs, retTy1)
     go retTy = pure ([],retTy)
@@ -124,12 +111,12 @@ argnam (MkArgInfo count piInfo name type isIndex) = name
 export
 makeTypeInfo : Name -> Elab TypeInfo
 makeTypeInfo n = do
-  logMsg 1 "bado"
+  logMsg "makeTypeInfo" 1 "bado"
   (tyname,tyimp) <- lookupName n
   args <- genArgs n
   connames <- getCons tyname
   conlist <- traverse getConType connames
-  logMsg 1 "I'm being computed"
+  logMsg "makeTypeInfo" 1 "I'm being computed"
   let tyargs = filter (isExplicitPi . piInfo) args
       ty = appTyCon (map (\arg => extractNameStr  arg.name) tyargs) tyname
   pure $ MkTypeInfo tyname args (zip connames conlist) ty
@@ -163,20 +150,20 @@ faf = do
   -- this happens with a simpler line like
   -- traverse (logMsg 12 . show) [the Int 1..10]
   -- but these double traversals take less lines to demonstrate it.
-  traverse (traverse (logMsg 12 . show)) [[the Int 1..10]] -- minor difference
-  traverse (traverse (logMsg 12 . show)) [[the Int 1..10]] -- minor difference
-  traverse (traverse (logMsg 12 . show)) [[the Int 1..10]] -- minor difference
-  traverse (traverse (logMsg 12 . show)) [[the Int 1..10]] -- minor difference
-  traverse (traverse (logMsg 12 . show)) [[the Int 1..10]] -- minor difference
-  traverse (traverse (logMsg 12 . show)) [[the Int 1..10]] -- minor difference
-  traverse (traverse (logMsg 12 . show)) [[the Int 1..10]] -- 0.3s
-  traverse (traverse (logMsg 12 . show)) [[the Int 1..10]] -- 0.4s
-  traverse (traverse (logMsg 12 . show)) [[the Int 1..10]] -- 0.5s
+  traverse (traverse (logMsg "" 12 . show)) [[the Int 1..10]] -- minor difference
+  traverse (traverse (logMsg "" 12 . show)) [[the Int 1..10]] -- minor difference
+  traverse (traverse (logMsg "" 12 . show)) [[the Int 1..10]] -- minor difference
+  traverse (traverse (logMsg "" 12 . show)) [[the Int 1..10]] -- minor difference
+  traverse (traverse (logMsg "" 12 . show)) [[the Int 1..10]] -- minor difference
+  traverse (traverse (logMsg "" 12 . show)) [[the Int 1..10]] -- minor difference
+  traverse (traverse (logMsg "" 12 . show)) [[the Int 1..10]] -- 0.3s
+  traverse (traverse (logMsg "" 12 . show)) [[the Int 1..10]] -- 0.4s
+  traverse (traverse (logMsg "" 12 . show)) [[the Int 1..10]] -- 0.5s
   
   -- Traversal time appreciatbly accelerates
-  traverse (traverse (logMsg 12 . show)) [[the Int 1..10]] -- 1.5s
-  traverse (traverse (logMsg 12 . show)) [[the Int 1..10]] -- 4s
-  traverse (traverse (logMsg 12 . show)) [[the Int 1..10]] -- 13s
+  traverse (traverse (logMsg "" 12 . show)) [[the Int 1..10]] -- 1.5s
+  traverse (traverse (logMsg "" 12 . show)) [[the Int 1..10]] -- 4s
+  traverse (traverse (logMsg "" 12 . show)) [[the Int 1..10]] -- 13s
   
   -- Gets out of hand here
   -- traverse (traverse (logMsg 12 . show)) [[the Int 1..10]]
