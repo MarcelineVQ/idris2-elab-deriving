@@ -1,13 +1,13 @@
 module Language.Elab.Deriving.Show
 
-import Language.Elab.Syntax
-import Language.Reflection
+import public Language.Elab.Syntax
+import public Language.Reflection
 
-import Language.Elab.Types
+import public Language.Elab.Types
 
-import Util
+import public Util
 
-import Data.Strings -- fastAppend
+import public Data.Strings -- fastAppend
 
 -- NB uses of things like show in the repl can cause ambiguity issues, confirm
 -- this is a problem before submitting a complaint. Refer to the note at
@@ -81,6 +81,7 @@ showObject decname showfun tyinfo vis = do
 
 -- TODO determine which tyvars are actually used later. We don't need to
 -- require Show for phantom parameters.
+export
 deriveShow : Visibility -> Name -> Elab ()
 deriveShow vis sname = do
   
@@ -94,10 +95,10 @@ deriveShow vis sname = do
     
     -- Our components for our showing function
     funclaim <- showClaim funn tyinfo Private -- NB private
-    funclauses <- traverseE (showCon funn) tyinfo.cons
+    funclauses <- traverse (showCon funn) tyinfo.cons
     
     -- Our function's complete definition
-    let fundecl = IDef EmptyFC funn (funclauses)
+    let fundecl = iDef funn (funclauses)
     
     -- TODO check if an instance exists already and abort if so
     
@@ -111,92 +112,92 @@ deriveShow vis sname = do
 -----------------------------
 -- Testing
 -----------------------------
-
-%language ElabReflection -- you can remove this once %runElab is no longer used in this module
--- That time will be when deriveShow prunes extraneous Show constraints and the
--- testing types are moved to their own module
-
-export
-data Foo1 : Type -> Type where
-  Bor1 : Foo1 a
-
-export
-data Foo2 : Type -> Type where
-  Bor2 : a -> Foo2 a
-
-data Foo4 : Type -> Type -> Type where
-  Bor4 : b -> Foo4 a b
-
-data Foo5 : Type -> Type -> Type -> Type where
-  Bor5 : a -> b -> c -> Foo5 a b c
-
--- NB c is never used, so Show shouldn't be required for it
-data Foo7 : Type -> Type -> Type -> Type where
-  Zor7 : a -> Foo7 a b c
-  Gor7 : b -> Foo7 a b c
-  Nor7A : a -> b -> Foo7 a b c
-  Nor7B : a -> b -> c -> Foo7 a b c
-  Bor7 : Foo7 a b c
-
--- NB a is never used, so Show shouldn't be required for it
-data Foo7' : Type -> Type -> Type -> Type where
-  Zor7' : c -> Foo7' a b c
-  Gor7' : b -> Foo7' a b c
-  Nor7' : b -> c -> Foo7' a b c
-  Bor7' : Foo7' a b c
-
-export
-data MyNat : Type where
-  MZ : MyNat
-  MS : MyNat -> MyNat
--- we'll use our own nat for index experimentation
-
-%runElab deriveShow Private `{{MyNat}}
-
-data Foo6 : Type -> Type -> Type -> Nat -> Type where
-  Zor6 : a -> b -> Foo6 a b c Z
-  Gor6 : b -> Foo6 a b c (S k)
-  Nor6A : a -> b -> c -> Foo6 a b c n
-  Nor6B : a -> (0 _ : b) -> c -> Foo6 a b c n -- NB: 0 Use arg
-  Bor6 : Foo6 a b c n
-  Wah6 : a -> (n : Nat) -> Foo6 a b c n
-
-export
-data Foo6' : Type -> Type -> Type -> MyNat -> Type where
-  Zor6'  : a -> b -> Foo6' a b c MZ
-  Gor6'  : b -> Foo6' a b c (MS k)
-  Nor6A' : a -> b -> c -> Foo6' a b c n
-  Nor6B' : a -> (0 _ : b) -> c -> Foo6' a b c n
-  Bor6'  : Foo6' a b c n
-  Wah6'  : a -> (n : MyNat) -> Foo6' a b c n
-
--- reference impl
-showFoo6 : (Show a, Show b, Show c) => Foo6 a b c n -> String
-showFoo6 (Zor6 x y) = "Zor6" ++ " " ++ show x ++ " " ++ show y
-showFoo6 (Gor6 x) = "Gor6" ++ " " ++ show x
-showFoo6 (Nor6A x y z)
-  = "Nor6A" ++ " " ++ show x ++ " " ++ show y ++ " " ++ show z
-showFoo6 (Nor6B x _ z)
-  = "Nor6B" ++ " " ++ show x ++ " " ++ "_0" ++ " " ++ show z
-showFoo6 (Bor6) = "Bor6"
-showFoo6 (Wah6 x i) = "Wah6" ++ " " ++ show x ++ " " ++ show i
--- showFoo6 {b=Int} {c=String} (Wah6 'c' (S Z))
-
-data FooN : Nat -> Type -> Type where
-  BorZ : b -> FooN Z b
-  BorS : b -> FooN (S Z) b
-  BorN : b -> FooN n b
--- show (BorN 'c')
-
-%runElab deriveShow Export  `{{Foo1}}
-%runElab deriveShow Export  `{{Foo2}}
-%runElab deriveShow Private `{{Foo4}}
-%runElab deriveShow Private `{{Foo5}}
-%runElab deriveShow Private `{{Foo6}}
-%runElab deriveShow Export  `{{Foo6'}}
-%runElab deriveShow Private `{{Foo7}}
-%runElab deriveShow Private `{{Foo7'}}
-%runElab deriveShow Private `{{FooN}}
+-- 
+-- %language ElabReflection -- you can remove this once %runElab is no longer used in this module
+-- -- That time will be when deriveShow prunes extraneous Show constraints and the
+-- -- testing types are moved to their own module
+-- 
+-- export
+-- data Foo1 : Type -> Type where
+--   Bor1 : Foo1 a
+-- 
+-- export
+-- data Foo2 : Type -> Type where
+--   Bor2 : a -> Foo2 a
+-- 
+-- data Foo4 : Type -> Type -> Type where
+--   Bor4 : b -> Foo4 a b
+-- 
+-- data Foo5 : Type -> Type -> Type -> Type where
+--   Bor5 : a -> b -> c -> Foo5 a b c
+-- 
+-- -- NB c is never used, so Show shouldn't be required for it
+-- data Foo7 : Type -> Type -> Type -> Type where
+--   Zor7 : a -> Foo7 a b c
+--   Gor7 : b -> Foo7 a b c
+--   Nor7A : a -> b -> Foo7 a b c
+--   Nor7B : a -> b -> c -> Foo7 a b c
+--   Bor7 : Foo7 a b c
+-- 
+-- -- NB a is never used, so Show shouldn't be required for it
+-- data Foo7' : Type -> Type -> Type -> Type where
+--   Zor7' : c -> Foo7' a b c
+--   Gor7' : b -> Foo7' a b c
+--   Nor7' : b -> c -> Foo7' a b c
+--   Bor7' : Foo7' a b c
+-- 
+-- export
+-- data MyNat : Type where
+--   MZ : MyNat
+--   MS : MyNat -> MyNat
+-- -- we'll use our own nat for index experimentation
+-- 
+-- %runElab deriveShow Private `{{MyNat}}
+-- 
+-- data Foo6 : Type -> Type -> Type -> Nat -> Type where
+--   Zor6 : a -> b -> Foo6 a b c Z
+--   Gor6 : b -> Foo6 a b c (S k)
+--   Nor6A : a -> b -> c -> Foo6 a b c n
+--   Nor6B : a -> (0 _ : b) -> c -> Foo6 a b c n -- NB: 0 Use arg
+--   Bor6 : Foo6 a b c n
+--   Wah6 : a -> (n : Nat) -> Foo6 a b c n
+-- 
+-- export
+-- data Foo6' : Type -> Type -> Type -> MyNat -> Type where
+--   Zor6'  : a -> b -> Foo6' a b c MZ
+--   Gor6'  : b -> Foo6' a b c (MS k)
+--   Nor6A' : a -> b -> c -> Foo6' a b c n
+--   Nor6B' : a -> (0 _ : b) -> c -> Foo6' a b c n
+--   Bor6'  : Foo6' a b c n
+--   Wah6'  : a -> (n : MyNat) -> Foo6' a b c n
+-- 
+-- -- reference impl
+-- showFoo6 : (Show a, Show b, Show c) => Foo6 a b c n -> String
+-- showFoo6 (Zor6 x y) = "Zor6" ++ " " ++ show x ++ " " ++ show y
+-- showFoo6 (Gor6 x) = "Gor6" ++ " " ++ show x
+-- showFoo6 (Nor6A x y z)
+--   = "Nor6A" ++ " " ++ show x ++ " " ++ show y ++ " " ++ show z
+-- showFoo6 (Nor6B x _ z)
+--   = "Nor6B" ++ " " ++ show x ++ " " ++ "_0" ++ " " ++ show z
+-- showFoo6 (Bor6) = "Bor6"
+-- showFoo6 (Wah6 x i) = "Wah6" ++ " " ++ show x ++ " " ++ show i
+-- -- showFoo6 {b=Int} {c=String} (Wah6 'c' (S Z))
+-- 
+-- data FooN : Nat -> Type -> Type where
+--   BorZ : b -> FooN Z b
+--   BorS : b -> FooN (S Z) b
+--   BorN : b -> FooN n b
+-- -- show (BorN 'c')
+-- 
+-- %runElab deriveShow Export  `{{Foo1}}
+-- %runElab deriveShow Export  `{{Foo2}}
+-- %runElab deriveShow Private `{{Foo4}}
+-- %runElab deriveShow Private `{{Foo5}}
+-- %runElab deriveShow Private `{{Foo6}}
+-- %runElab deriveShow Export  `{{Foo6'}}
+-- %runElab deriveShow Private `{{Foo7}}
+-- %runElab deriveShow Private `{{Foo7'}}
+-- %runElab deriveShow Private `{{FooN}}
 
 -- There's an issue in use of `show` from the repl as it's not going to do a
 -- bunch of defaulting for you.
