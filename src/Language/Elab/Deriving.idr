@@ -2,6 +2,10 @@ module Language.Elab.Deriving
 
 import Language.Reflection
 
+import Language.Elab.Deriving.Eq
+-- import Language.Elab.Deriving.Ord
+import Language.Elab.Deriving.Show
+
 %language ElabReflection
 
 -- the handy regex for eliminating FC from tests: \(MkFC.+?\)\)\s
@@ -27,6 +31,18 @@ import Language.Reflection
 -- deriving via would be neat too, how do?
 
 -- derive functor, and applicative and monad
+
+derivable : Type -> (Visibility -> Name -> Elab ())
+derivable (Eq a) = deriveEq
+derivable (Show a) = deriveShow
+derivable t = \_,_ => fail "Given a (currently) non-derivable interface."
+
+-- sort instances by requirments, e.g. (1,Eq), (2,Ord) etc
+
+-- export
+-- deriving : Visibility -> Name -> Type -> Elab ()
+-- deriving vis nam ty = do
+  -- let fun = derivable ty
 
 
 {-

@@ -14,6 +14,12 @@ import public Language.Elab.Deriving.Util
 import public Language.Reflection
 
 
+{-
+interesting case, happens to work for Show already!
+data TagField : Type where
+  TF : Eq a => Show a => (name : String) -> (value : a) -> TagField
+-}
+
 -- A regular instance might look like (Eq a, Eq b, Eq c) => ...
 -- This pairing isn't actually neccesary, it's just notational convenience and
 -- we don't really have a reason to emulate it.

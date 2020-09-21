@@ -19,6 +19,26 @@ export
 (&&|) x y = x && y
 
 export
+zipWithSL : (a -> b -> c) -> Stream a -> List b -> List c
+zipWithSL _ _ [] = []
+zipWithSL f (x :: xs) (y :: ys) = f x y :: zipWithSL f xs ys
+
+export
+zipWithLS : (a -> b -> c) -> List a -> Stream b -> List c
+zipWithLS _ [] _ = []
+zipWithLS f (x :: xs) (y :: ys) = f x y :: zipWithLS f xs ys
+
+export
+%inline
+zipSL : Stream a -> List b -> List (a,b)
+zipSL = zipWithSL MkPair
+
+export
+%inline
+zipLS : List a -> Stream b -> List (a,b)
+zipLS = zipWithLS MkPair
+
+export
 catMaybes : List (Maybe a) -> List a
 catMaybes z = foldr (\m,f => maybe f (\x => (x ::) . f) m) id z []
 
