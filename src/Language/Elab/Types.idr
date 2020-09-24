@@ -140,42 +140,6 @@ data Foo6'' : Type -> Type -> Type -> Nat -> Type where
   Bor6'' : Foo6'' a b c n
   Wah6'' : a -> (n : Nat) -> Foo6'' a b c n
 
--- This is an issue because elaboration on datatypes requires many traverersals,
--- of the types, the constructors, building up results etc.
--- logMsg is set to 12 because we're not interested in executing it, it's just
--- an easy placeholder
-faf : Elab ()
-faf = do
-  -- Each additional line is exponentially slower than the last
-  -- this happens with a simpler line like
-  -- traverse (logMsg 12 . show) [the Int 1..10]
-  -- but these double traversals take less lines to demonstrate it.
-  traverse (traverse (logMsg "" 12 . show)) [[the Int 1..10]] -- minor difference
-  traverse (traverse (logMsg "" 12 . show)) [[the Int 1..10]] -- minor difference
-  traverse (traverse (logMsg "" 12 . show)) [[the Int 1..10]] -- minor difference
-  traverse (traverse (logMsg "" 12 . show)) [[the Int 1..10]] -- minor difference
-  traverse (traverse (logMsg "" 12 . show)) [[the Int 1..10]] -- minor difference
-  traverse (traverse (logMsg "" 12 . show)) [[the Int 1..10]] -- minor difference
-  traverse (traverse (logMsg "" 12 . show)) [[the Int 1..10]] -- 0.3s
-  traverse (traverse (logMsg "" 12 . show)) [[the Int 1..10]] -- 0.4s
-  traverse (traverse (logMsg "" 12 . show)) [[the Int 1..10]] -- 0.5s
-  
-  -- Traversal time appreciatbly accelerates
-  traverse (traverse (logMsg "" 12 . show)) [[the Int 1..10]] -- 1.5s
-  traverse (traverse (logMsg "" 12 . show)) [[the Int 1..10]] -- 4s
-  traverse (traverse (logMsg "" 12 . show)) [[the Int 1..10]] -- 13s
-  
-  -- Gets out of hand here
-  -- traverse (traverse (logMsg 12 . show)) [[the Int 1..10]]
-  
-  pure ()
-  
-%runElab faf
- 
--- possible clock error
--- logtimerecord' should accrue but logtime should not
-  
-
+{-
 -- I need a minimal example of reflected OrderedSet failing
--- I also need to see if Elab, or Reflect/Reify, is left biased
--- -}
+-}

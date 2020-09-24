@@ -129,8 +129,8 @@ ordObject decname eqfun tyinfo vis = do
       -- neqfun = `(\x,y => not (x == y))
       rhs = `( ~(iVar ordcon) %search ~compare ~lt ~gt ~lte ~gte ~max ~min)
       body = iDef decname [(patClause (iVar decname) rhs)]
-  logDecls 1 "claim" [claim]
-  logDecls 1 "body" [body]
+  logDecls "ordObject" 1 "claim" [claim]
+  logDecls "ordObject" 1 "body" [body]
 
   pure $ (claim,body)
 
@@ -312,14 +312,16 @@ data FooN : MyNat -> Type -> Type where
 
 %runElab deriveEq Export `{{MyNat}}
 %runElab deriveOrd Export `{{MyNat}}
-%runElab deriveOrd Export `{{Foo1}}
 %runElab deriveEq Export  `{{Foo2}}
-%runElab deriveOrd Export `{{Foo2}} -- works but doesn't warn if no Eq instance
+%runElab deriveOrd Export `{{Foo2}} -- works but doesn't warn if no Eq instance is this because the constraint is the more involved Eq (Foo2 a) instead of Eq MyNat?
+%runElab deriveEq Private `{{Foo4}}
 %runElab deriveOrd Private `{{Foo4}}
+%runElab deriveEq Private `{{Foo5}}
 %runElab deriveOrd Private `{{Foo5}}
+%runElab deriveEq Private `{{Foo7}}
 %runElab deriveOrd Private `{{Foo7}}
-%runElab deriveOrd Private `{{Foo7'}}
+%runElab deriveEq Private `{{Foo7'}}
+-- %runElab deriveOrd Private `{{Foo7'}}
 -- %runElab deriveOrd Private `{{FooN}} -- trouble with indices still
 -- %runElab deriveOrd Private `{{Foo6}}
 -- %runElab deriveOrd Export  `{{Foo6'}}
-

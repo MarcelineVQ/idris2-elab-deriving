@@ -202,8 +202,8 @@ isImplicitPi ImplicitArg = True
 isImplicitPi _ = False
 
 export
-logDecls : Nat -> String -> List Decl -> Elab ()
-logDecls n s d = logTerm "logDecls" n s $ ILocal EmptyFC d `( () )
+logDecls : String -> Nat -> String -> List Decl -> Elab ()
+logDecls ty n s d = logTerm ty n s $ ILocal EmptyFC d `( () )
 
 -- Turn a name into a string, add parens to an operator-like string
 export

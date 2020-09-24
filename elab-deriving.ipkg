@@ -18,6 +18,9 @@ modules = Language.Elab.Deriving
         , Language.Elab.Deriving.Eq
         , Language.Elab.Deriving.EqTest
         , Language.Elab.Deriving.Ord
+        
+        , Language.Elab.Deriving.Selectors
+        
 
         , Language.Elab.Syntax
         , Language.Elab.Types
