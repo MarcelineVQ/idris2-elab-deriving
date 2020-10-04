@@ -98,6 +98,9 @@ data FooN : MyNat -> Type -> Type where
   BorS : b -> FooN (MS MZ) b
   BorNA : (k : MyNat) -> b -> FooN n b
   BorNB : (n : MyNat) -> b -> FooN n b
+  
+data XXX : Type where
+  MkXXX : {a : Int} -> (b : Int) -> XXX
 
 %runElab deriveEq Export  `{{MyNat}}
 %runElab deriveEq Export `{{Foo1}}
@@ -109,6 +112,7 @@ data FooN : MyNat -> Type -> Type where
 %runElab deriveEq Private `{{FooN}}
 %runElab deriveEq Private `{{Foo6}}
 %runElab deriveEq Export  `{{Foo6'}}
+%runElab deriveEq Export  `{{XXX}}
 
 -- can check what's generated via
 -- :printdef eqImplFoo7'Fun

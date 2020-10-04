@@ -44,32 +44,35 @@ eqClaim op tyinfo vis = do
       varnames = map (show . name) conargs
       params = map (extractNameStr . name) $ filter (not . isIndex) conargs
       tysig = `(~(tyinfo.type) -> ~(tyinfo.type) -> Bool)
+      tysig' = addEqAutoImps params tysig
   logMsg "eqClaim" 1 $ ("auto params: ") ++ show params
+  logTerm "eqClaimTySig" 1 "" tysig'
   -- NB: I can't think of a reason not to Inline here
-  pure $ iClaim MW vis [Inline] (mkTy op (addEqAutoImps params tysig))
+  pure $ iClaim MW vis [Inline] (mkTy op tysig')
 
 eqCon : (opname : Name) -> (Name, List ArgInfo, TTImp) -> Elab Clause
 eqCon op (conname, args, contype) = do
     let vars = filter (isExplicitPi . piInfo) args
-        (pats1, pats2) = makePatNames vars infVars
-        lhs = iVar op `iApp` (makePat conname pats1) `iApp` (makePat conname pats2)
-        rhs = makeRhs (zip (catMaybes pats1) (catMaybes pats2))
-    logTerm "eqcon" 1 "" rhs
+        pats = makePatNames vars infVars
+        lhs = iVar op `iApp` (makePat conname (map (map fst) pats)) `iApp` (makePat conname (map (map snd) pats))
+        rhs = makeRhs (catMaybes pats)
+    logTerm "eqconlhs" 1 "" lhs
+    logTerm "eqconrhs" 1 "" rhs
     pure $ patClause lhs rhs 
   where
     -- Make our pat names, we use Just to flag the vars we want to use, we don't
     -- compare indices since they're vacuously the same for the Eq interface.
     -- It doesn't seem to matter if an index is M1 or not.
     makePatNames : List ArgInfo
-               -> Stream String -> (List (Maybe Name), List (Maybe Name))
-    makePatNames [] vs = ([],[])
+               -> Stream String -> (List (Maybe (Name,Name)))
+    makePatNames [] vs = []
     makePatNames (a :: as) (v :: vs)
-      = let (xs,ys) = makePatNames as vs
-            basicname = UN v
-        in if isUse0 a.count || a.isIndex
-             then (Nothing :: xs, Nothing :: ys)
-             else (Just (mapName (++ "_1") basicname) :: xs
-                  ,Just (mapName (++ "_2") basicname) :: ys)
+      =  
+       let xs = makePatNames as vs
+           basicname = UN v
+       in if isUse0 a.count || a.isIndex
+          then Nothing :: xs
+          else Just ((mapName (++ "_1") basicname), (mapName (++ "_2") basicname)) :: xs
 
     -- The lhs of our function, fields we don't want to use are replaced with _
     makePat : (con : Name) -> (vars : List (Maybe Name)) -> TTImp
@@ -134,3 +137,10 @@ deriveEq vis eqname = do
     -- Both claims first, otherwise we won't find our own Eq in fundecl
     declare [funclaim, objclaim]
     declare [fundecl, objclause]
+
+data Flippy = Dolphin | Shark
+
+%language ElabReflection
+%logging 1
+%runElab deriveEq Export  `{{Flippy}}
+  

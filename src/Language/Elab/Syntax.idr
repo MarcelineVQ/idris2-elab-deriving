@@ -107,6 +107,9 @@ export
 iDef : Name -> List Clause -> Decl
 iDef = IDef EmptyFC
 
+export
+iAs : Name -> TTImp -> TTImp
+iAs = IAs EmptyFC UseLeft  --TODO 3 not sure UseLeft or UseRight here
 
 export
 iPrimVal : (c : Constant) -> TTImp
@@ -183,12 +186,15 @@ extractNameNo : Name -> Int
 extractNameNo (MN _ i) = i
 extractNameNo _ = 0
 
+Eq Namespace where
+  ((MkNS xs) == (MkNS ys)) = xs == ys
+
 -- Change/remove this later, we really don't want to have it, or export it
 export
 implementation Eq Name where
   (==) (UN x) (UN y) = x == y
   (==) (MN x z) (MN y w) = z == w && x == y
-  (==) (NS (MkNS xs) x) (NS (MkNS ys) y) = xs == ys && x == y
+  (==) (NS xs x) (NS ys y) = xs == ys && x == y
   (==) _ _ = False
 
 export

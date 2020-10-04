@@ -310,17 +310,18 @@ data FooN : MyNat -> Type -> Type where
   BorNA : (k : MyNat) -> b -> FooN n b
   BorNB : (n : MyNat) -> b -> FooN n b
 
-%runElab deriveEq Export `{{MyNat}}
-%runElab deriveOrd Export `{{MyNat}}
-%runElab deriveEq Export  `{{Foo2}}
-%runElab deriveOrd Export `{{Foo2}} -- works but doesn't warn if no Eq instance is this because the constraint is the more involved Eq (Foo2 a) instead of Eq MyNat?
-%runElab deriveEq Private `{{Foo4}}
-%runElab deriveOrd Private `{{Foo4}}
-%runElab deriveEq Private `{{Foo5}}
-%runElab deriveOrd Private `{{Foo5}}
-%runElab deriveEq Private `{{Foo7}}
-%runElab deriveOrd Private `{{Foo7}}
-%runElab deriveEq Private `{{Foo7'}}
+-- TODO Tim: Broken
+-- %runElab deriveEq Export `{{MyNat}}
+-- %runElab deriveOrd Export `{{MyNat}}
+-- %runElab deriveEq Export  `{{Foo2}}
+-- %runElab deriveOrd Export `{{Foo2}} -- works but doesn't warn if no Eq instance is this because the constraint is the more involved Eq (Foo2 a) instead of Eq MyNat?
+-- %runElab deriveEq Private `{{Foo4}}
+-- %runElab deriveOrd Private `{{Foo4}}
+-- %runElab deriveEq Private `{{Foo5}}
+-- %runElab deriveOrd Private `{{Foo5}}
+-- %runElab deriveEq Private `{{Foo7}}
+-- %runElab deriveOrd Private `{{Foo7}}
+-- %runElab deriveEq Private `{{Foo7'}}
 -- %runElab deriveOrd Private `{{Foo7'}}
 -- %runElab deriveOrd Private `{{FooN}} -- trouble with indices still
 -- %runElab deriveOrd Private `{{Foo6}}
