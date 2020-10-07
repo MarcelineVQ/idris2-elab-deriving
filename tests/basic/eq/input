@@ -1,0 +1,21 @@
+:printdef eqImplMyNat
+:printdef eqImplMyNatFun
+:printdef eqImplFoo1
+:printdef eqImplFoo1Fun
+:printdef eqImplFoo2
+:printdef eqImplFoo2Fun
+:printdef eqImplFoo4
+:printdef eqImplFoo4Fun
+:printdef eqImplFoo5
+:printdef eqImplFoo5Fun
+:printdef eqImplFoo7
+:printdef eqImplFoo7Fun
+:printdef eqImplFoo7'
+:printdef eqImplFoo7'Fun
+:printdef eqImplFooN
+:printdef eqImplFooNFun
+:printdef eqImplFoo6
+:printdef eqImplFoo6Fun
+:printdef eqImplFoo6'
+:printdef eqImplFoo6'Fun
+

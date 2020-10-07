@@ -107,6 +107,9 @@ export
 iDef : Name -> List Clause -> Decl
 iDef = IDef EmptyFC
 
+export
+iAs : Name -> TTImp -> TTImp
+iAs = IAs EmptyFC UseLeft  
 
 export
 iPrimVal : (c : Constant) -> TTImp

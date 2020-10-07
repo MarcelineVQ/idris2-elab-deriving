@@ -1,0 +1,10 @@
+1/1: Building DecEqTest (DecEqTest.idr)
+DecEqTest> DecEqTest.decEqImplFlippy : DecEq Flippy
+decEqImplFlippy = DecEq at Decidable/Equality.idr:15:1--25:78 decEqImplFlippyFun
+DecEqTest> DecEqTest.decEqImplFlippyFun : (x1 : Flippy) -> (x2 : Flippy) -> Dec (x1 = x2)
+decEqImplFlippyFun Dolphin Dolphin = Yes Refl
+decEqImplFlippyFun Shark Shark = Yes Refl
+decEqImplFlippyFun Dolphin Shark = No (foo b2469 a2468)
+decEqImplFlippyFun Shark Dolphin = No (foo b2471 a2470)
+DecEqTest> 
+Bye for now!

@@ -1,0 +1,68 @@
+1/1: Building ShowTest (ShowTest.idr)
+ShowTest> ShowTest.showImplMyNat : Show MyNat
+showImplMyNat = Show at Prelude/Show.idr:41:1--64:67 showImplMyNatFun (\{_:3258}, x => showImplMyNatFun x)
+ShowTest> ShowTest.showImplMyNatFun : MyNat -> String
+showImplMyNatFun MZ = "MZ"
+showImplMyNatFun (MS {arg:2965}) = "MS" ++ (" " ++ show {arg:2965})
+ShowTest> ShowTest.showImplFoo1 : Show arg3261 => Show (Foo1 arg3261)
+showImplFoo1 = Show at Prelude/Show.idr:41:1--64:67 showImplFoo1Fun (\{_:3281}, x => showImplFoo1Fun x)
+ShowTest> ShowTest.showImplFoo1Fun : Show arg3261 => Foo1 arg3261 -> String
+showImplFoo1Fun Bor1 = "Bor1"
+ShowTest> ShowTest.showImplFoo2 : Show arg3288 => Show (Foo2 arg3288)
+showImplFoo2 = Show at Prelude/Show.idr:41:1--64:67 showImplFoo2Fun (\{_:3317}, x => showImplFoo2Fun x)
+ShowTest> ShowTest.showImplFoo2Fun : Show arg3288 => Foo2 arg3288 -> String
+showImplFoo2Fun (Bor2 {arg:2938}) = "Bor2" ++ (" " ++ show {arg:2938})
+ShowTest> ShowTest.showImplFoo4 : Show arg3324 => Show arg3325 => Show (Foo4 arg3324 arg3325)
+showImplFoo4 = Show at Prelude/Show.idr:41:1--64:67 showImplFoo4Fun (\{_:3368}, x => showImplFoo4Fun x)
+ShowTest> ShowTest.showImplFoo4Fun : Show arg3324 => Show arg3325 => Foo4 arg3324 arg3325 -> String
+showImplFoo4Fun (Bor4 {arg:2941}) = "Bor4" ++ (" " ++ show {arg:2941})
+ShowTest> ShowTest.showImplFoo5 : Show arg3377 => Show arg3378 => Show arg3379 => Show (Foo5 arg3377 arg3378 arg3379)
+showImplFoo5 = Show at Prelude/Show.idr:41:1--64:67 showImplFoo5Fun (\{_:3456}, x => showImplFoo5Fun x)
+ShowTest> ShowTest.showImplFoo5Fun : Show arg3377 => Show arg3378 => Show arg3379 => Foo5 arg3377 arg3378 arg3379 -> String
+showImplFoo5Fun (Bor5 {arg:2945} {arg:2946} {arg:2947}) = (("Bor5" ++ (" " ++ show {arg:2945})) ++ (" " ++ show {arg:2946})) ++ (" " ++ show {arg:2947})
+ShowTest> ShowTest.showImplFoo7 : Show arg3467 => Show arg3468 => Show arg3469 => Show (Foo7 arg3467 arg3468 arg3469)
+showImplFoo7 = Show at Prelude/Show.idr:41:1--64:67 showImplFoo7Fun (\{_:3659}, x => showImplFoo7Fun x)
+ShowTest> ShowTest.showImplFoo7Fun : Show arg3467 => Show arg3468 => Show arg3469 => Foo7 arg3467 arg3468 arg3469 -> String
+showImplFoo7Fun (Zor7 {arg:2951}) = "Zor7" ++ (" " ++ show {arg:2951})
+showImplFoo7Fun (Gor7 {arg:2952}) = "Gor7" ++ (" " ++ show {arg:2952})
+showImplFoo7Fun (Nor7A {arg:2953} {arg:2954}) = ("Nor7A" ++ (" " ++ show {arg:2953})) ++ (" " ++ show {arg:2954})
+showImplFoo7Fun (Nor7B {arg:2955} {arg:2956} {arg:2957}) = (("Nor7B" ++ (" " ++ show {arg:2955})) ++ (" " ++ show {arg:2956})) ++ (" " ++ show {arg:2957})
+showImplFoo7Fun Bor7 = "Bor7"
+ShowTest> ShowTest.showImplFoo7' : Show arg3670 => Show arg3671 => Show arg3672 => Show (Foo7' arg3670 arg3671 arg3672)
+showImplFoo7' = Show at Prelude/Show.idr:41:1--64:67 showImplFoo7'Fun (\{_:3814}, x => showImplFoo7'Fun x)
+ShowTest> ShowTest.showImplFoo7'Fun : Show arg3670 => Show arg3671 => Show arg3672 => Foo7' arg3670 arg3671 arg3672 -> String
+showImplFoo7'Fun (Zor7' {arg:2961}) = "Zor7'" ++ (" " ++ show {arg:2961})
+showImplFoo7'Fun (Gor7' {arg:2962}) = "Gor7'" ++ (" " ++ show {arg:2962})
+showImplFoo7'Fun (Nor7' {arg:2963} {arg:2964}) = ("Nor7'" ++ (" " ++ show {arg:2963})) ++ (" " ++ show {arg:2964})
+showImplFoo7'Fun Bor7' = "Bor7'"
+ShowTest> ShowTest.showImplFooN : Show arg3826 => Show (FooN arg3825 arg3826)
+showImplFooN = Show at Prelude/Show.idr:41:1--64:67 showImplFooNFun (\{_:3929}, x => showImplFooNFun x)
+ShowTest> ShowTest.showImplFooNFun : Show arg3826 => FooN arg3825 arg3826 -> String
+showImplFooNFun (BorZ {arg:3241}) = "BorZ" ++ (" " ++ show {arg:3241})
+showImplFooNFun (BorS {arg:3242}) = "BorS" ++ (" " ++ show {arg:3242})
+showImplFooNFun (BorNA k {arg:3243}) = ("BorNA" ++ (" " ++ show k)) ++ (" " ++ show {arg:3243})
+showImplFooNFun (BorNB n {arg:3244}) = ("BorNB" ++ (" " ++ show n)) ++ (" " ++ show {arg:3244})
+ShowTest> ShowTest.showImplFoo6 : Show arg3937 => Show arg3938 => Show arg3939 => Show (Foo6 arg3937 arg3938 arg3939 arg3940)
+showImplFoo6 = Show at Prelude/Show.idr:41:1--64:67 showImplFoo6Fun (\{_:4243}, x => showImplFoo6Fun x)
+ShowTest> ShowTest.showImplFoo6Fun : Show arg3937 => Show arg3938 => Show arg3939 => Foo6 arg3937 arg3938 arg3939 arg3940 -> String
+showImplFoo6Fun (Zor6 {arg:2970} {arg:2971}) = ("Zor6" ++ (" " ++ show {arg:2970})) ++ (" " ++ show {arg:2971})
+showImplFoo6Fun (Gor6 {arg:2972}) = "Gor6" ++ (" " ++ show {arg:2972})
+showImplFoo6Fun (Nor6A {arg:2973} {arg:2974} {arg:2975}) = (("Nor6A" ++ (" " ++ show {arg:2973})) ++ (" " ++ show {arg:2974})) ++ (" " ++ show {arg:2975})
+showImplFoo6Fun (Nor6B {arg:2976} {arg:2977} {arg:2978}) = (("Nor6B" ++ (" " ++ show {arg:2976})) ++ (" " ++ "_0")) ++ (" " ++ show {arg:2978})
+showImplFoo6Fun Bor6A = "Bor6A"
+showImplFoo6Fun (Bor6B {arg:2979}) = "Bor6B" ++ (" " ++ show {arg:2979})
+showImplFoo6Fun (Wah6 {arg:2980} n) = ("Wah6" ++ (" " ++ show {arg:2980})) ++ (" " ++ show n)
+ShowTest> ShowTest.showImplFoo6' : Show arg4255 => Show arg4256 => Show arg4257 => Show (Foo6' arg4255 arg4256 arg4257 arg4258)
+showImplFoo6' = Show at Prelude/Show.idr:41:1--64:67 showImplFoo6'Fun (\{_:4661}, x => showImplFoo6'Fun x)
+ShowTest> ShowTest.showImplFoo6'Fun : Show arg4255 => Show arg4256 => Show arg4257 => Foo6' arg4255 arg4256 arg4257 arg4258 -> String
+showImplFoo6'Fun (Zor6' {arg:2985} {arg:2986}) = ("Zor6'" ++ (" " ++ show {arg:2985})) ++ (" " ++ show {arg:2986})
+showImplFoo6'Fun (Gor6A' {arg:2987}) = "Gor6A'" ++ (" " ++ show {arg:2987})
+showImplFoo6'Fun (Gor6B' k {arg:2988}) = ("Gor6B'" ++ (" " ++ show k)) ++ (" " ++ show {arg:2988})
+showImplFoo6'Fun (Nor6A' {arg:2989} {arg:2990} {arg:2991}) = (("Nor6A'" ++ (" " ++ show {arg:2989})) ++ (" " ++ show {arg:2990})) ++ (" " ++ show {arg:2991})
+showImplFoo6'Fun (Nor6B' {arg:2992} {arg:2993} {arg:2994}) = (("Nor6B'" ++ (" " ++ show {arg:2992})) ++ (" " ++ "_0")) ++ (" " ++ show {arg:2994})
+showImplFoo6'Fun Bor6' = "Bor6'"
+showImplFoo6'Fun (Wah6' {arg:2995} n) = ("Wah6'" ++ (" " ++ show {arg:2995})) ++ (" " ++ show n)
+showImplFoo6'Fun (Kah6' {arg:2996} n {arg:2997}) = (("Kah6'" ++ (" " ++ show {arg:2996})) ++ (" " ++ show n)) ++ (" " ++ "_0")
+showImplFoo6'Fun (Pah6' {arg:2998} n {arg:2999} {arg:3000}) = ((("Pah6'" ++ (" " ++ show {arg:2998})) ++ (" " ++ show n)) ++ (" " ++ show {arg:2999})) ++ (" " ++ "_0")
+ShowTest> 
+Bye for now!

@@ -1,4 +1,4 @@
-module Language.Elab.Deriving.EqTest
+module EqTest
 
 import Language.Elab.Deriving.Eq
 %language ElabReflection
@@ -98,7 +98,7 @@ data FooN : MyNat -> Type -> Type where
   BorS : b -> FooN (MS MZ) b
   BorNA : (k : MyNat) -> b -> FooN n b
   BorNB : (n : MyNat) -> b -> FooN n b
-
+  
 %runElab deriveEq Export  `{{MyNat}}
 %runElab deriveEq Export `{{Foo1}}
 %runElab deriveEq Export  `{{Foo2}}
