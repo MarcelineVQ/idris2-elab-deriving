@@ -46,25 +46,53 @@ data Foo : Type where
   Waf : Int -> Foo
   (:::) : Bool -> Bool -> Foo -- not really doable with singular functions, is::: ?
 
-select : TTImp -> Visibility -> (Name, List ArgInfo, TTImp) -> Elab ()
-select dty vis (conn,args,imp) = do
-  let n = mapName ("is" ++) conn -- isWaf
+select : TTImp -> Visibility -> Constructor -> Elab ()
+select dty vis con = do
+  let n = mapName ("is" ++) con.name -- isWaf
       c = iClaim MW vis [] $ mkTy n `( ~dty -> Bool)
-      expargs = filter (isExplicitPi . piInfo) args
-      c1 = patClause (iVar n `iApp` foldl (\xs,_ => `(~xs _) ) (iVar conn) expargs)
+      expargs = filter (isExplicitPi . piInfo) con.args
+      c1 = patClause (iVar n `iApp` foldl (\xs,_ => `(~xs _) ) (iVar con.name) expargs)
                      `(True)
       catchall = patClause `(~(iVar n) _) `(False)
       d = iDef n [c1,catchall]
   declare [c,d]
   pure ()
 
+||| Derives a selector for any non-operator constructor
+||| Simply because I'm not sure how to let you type the letters: e.g. is:::
 export
 deriveSelectors : Visibility -> Name -> Elab ()
 deriveSelectors vis tn = do
   ti <- makeTypeInfo tn
-  traverse_ (select ti.type vis) ti.cons
+  let cons' = filter (not . isOpName . name) ti.cons
+  traverse_ (select ti.type vis) cons'
+
+fetchRoot : TTImp -> TTImp
+fetchRoot (IApp _ y _) = fetchRoot y
+fetchRoot ty = ty
+
+isCon : Name -> Constructor -> Elab Clause
+isCon cn con = ?isCon_rhs
+
+-- This is kind of tough, we don't have a good way to say
+-- isFooCon (:::)   isFooCon Waf at the same type.
+-- If we take a Name, e.g.:
+-- isFooCon `{{(:::)}}   isFooCon `{{Waf}}
+-- We don't have a good way to enforce it's valid to use
+-- adding Maybe is a bit too much work for the user to deal with
+deriveIsCon : Visibility -> Name -> Elab ()
+deriveIsCon vis cn = do
+  ti <- makeTypeInfo cn
+  let n = mapName (\n => "is" ++ n ++ "Con") ti.name -- isFooCon, need to get Foo from cn
+  let c = iClaim MW vis [] $ mkTy `{{Foo}} `( Name -> Bool)
+  let catchall = patClause `(~(iVar n) _) `(False)
+
+  defs <- traverse (isCon ti.name) ti.cons
+  pure ()
+
 
 %runElab deriveSelectors Private `{{Foo}}
+-- %runElab deriveIsCon Private `{{Foo}}
 
 foo1 : Foo -> Bool
 foo1 x = isWaf x
@@ -72,7 +100,5 @@ foo1 x = isWaf x
 foo2 : Foo -> Bool
 foo2 x = isBif x
 
-foo3 : Foo -> Bool
-foo3 x = ?fsd -- is::: x  not really gonna happen
--- ^ This is why a combined approach is probably best, e.g. isCon (:::) x
-
+-- foo3 : Foo -> Bool
+-- foo3 x = is::: x -- isn't generated

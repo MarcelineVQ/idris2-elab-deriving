@@ -48,19 +48,19 @@ eqClaim op tyinfo vis = do
   -- NB: I can't think of a reason not to Inline here
   pure $ iClaim MW vis [Inline] (mkTy op (addEqAutoImps params tysig))
 
-eqCon : (opname : Name) -> (Name, List ArgInfo, TTImp) -> Elab Clause
-eqCon op (conname, args, contype) = do
-    let vars = filter (isExplicitPi . piInfo) args
+eqCon : (opname : Name) -> Constructor -> Elab Clause
+eqCon op con = do
+    let vars = filter (isExplicitPi . piInfo) con.args
         pats = makePatNames vars infVars
-        lhs = iVar op `iApp` (makePat conname (map (map fst) pats)) `iApp` (makePat conname (map (map snd) pats))
+        lhs = iVar op `iApp` (makePat con.name (map (map fst) pats))
+                      `iApp` (makePat con.name (map (map snd) pats))
         rhs = makeRhs (catMaybes pats)
     logTerm "eqconlhs" 1 "" lhs
     logTerm "eqconrhs" 1 "" rhs
     pure $ patClause lhs rhs 
   where
     -- Make our pat names, we use Just to flag the vars we want to use, we don't
-    -- compare indices since they're vacuously the same for the Eq interface.
-    -- It doesn't seem to matter if an index is M1 or not.
+    -- compare indices since they're vacuously the same for an Eq interface.
     makePatNames : List ArgInfo
                -> Stream String -> (List (Maybe (Name,Name)))
     makePatNames [] vs = []

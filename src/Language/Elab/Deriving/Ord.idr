@@ -47,14 +47,14 @@ compareClaim op tyinfo vis = do
 
 
 compareClause : (opname : Name)
-             -> (Int, (Name, List ArgInfo, TTImp))
-             -> (Int, (Name, List ArgInfo, TTImp)) -> Elab Clause
-compareClause op (i1,(conname1,args1,imp1)) (i2,(conname2,args2,imp2)) = do
-    let vars1 = filter (isExplicitPi . piInfo) args1
-    let vars2 = filter (isExplicitPi . piInfo) args2
+             -> (Int, Constructor)
+             -> (Int, Constructor) -> Elab Clause
+compareClause op (i1,con1) (i2,con2) = do
+    let vars1 = filter (isExplicitPi . piInfo) con1.args
+    let vars2 = filter (isExplicitPi . piInfo) con2.args
     let pats1 = makePatNames vars1 infVars "_1"
     let pats2 = makePatNames vars2 infVars "_2"
-    let lhs = iVar op `iApp` (makePat conname1 pats1) `iApp` (makePat conname2 pats2)
+    let lhs = iVar op `iApp` (makePat con1.name pats1) `iApp` (makePat con2.name pats2)
     let rhs = case compare i1 i2 of
                 LT => `(LT)
                 GT => `(GT)

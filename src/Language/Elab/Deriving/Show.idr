@@ -36,17 +36,17 @@ showClaim op tyinfo vis = do
   -- NB: I can't think of a reason not to Inline here
   pure $ iClaim MW vis [Inline] (mkTy op (addShowAutoImps varnames' tysig))
 
-showCon : (opname : Name) -> (Name, List ArgInfo, TTImp) -> Elab Clause
-showCon op (conname, args, contype) = do
-    let varnames = filter (isExplicitPi . piInfo) args
+showCon : (opname : Name) -> Constructor -> Elab Clause
+showCon op con = do
+    let varnames = filter (isExplicitPi . piInfo) con.args
         lhsvars = map (show . name) varnames
         rhsvars = map (\arg => if isUse0 (count arg)
                              then Nothing
                              else Just (show arg.name)) varnames
         lhs = iVar op `iApp`
-                foldl (\tt,v => `(~(tt) ~(iBindVar v))) (iVar conname) lhsvars
+                foldl (\tt,v => `(~(tt) ~(iBindVar v))) (iVar con.name) lhsvars
         rhs = foldl (\tt,v => `( ~(tt) ++ " " ++ ~(beShown v)))
-                (iPrimVal (Str !(showName conname))) rhsvars
+                (iPrimVal (Str !(showName con.name))) rhsvars
     pure $ patClause lhs rhs
   where
     beShown : Maybe String -> TTImp

@@ -38,6 +38,16 @@ logArgInfo n (MkArgInfo count piInfo name type isIndex) = do
   logMsg "logArgInfo" n $ "MkArgInfo " ++ show count ++ " " ++ show piInfo ++ " " ++ showPrec App name
   logTerm "logArgInfo" n "argimp: " type
 
+
+-- Fully qualified Name
+-- `type` is our fully applied type, e.g. given args a,b,c: Foo a b c
+public export
+record Constructor where
+  constructor MkConstructor
+  name : Name
+  args : List ArgInfo
+  type : TTImp
+
 -- Fully qualified Name
 -- `type` is our fully applied type, e.g. given args a,b,c: Foo a b c
 public export
@@ -45,7 +55,7 @@ record TypeInfo where
   constructor MkTypeInfo
   name : Name
   args : List ArgInfo
-  cons : List (Name, List ArgInfo, TTImp)
+  cons : List Constructor
   type : TTImp
 
 
@@ -73,8 +83,7 @@ getConType qn = go (snd !(lookupName qn))
       (xs,retTy1) <- go retTy0
       let n1 = maybe !(genSym "arg") id n0
       logMsg "getConType" 1 "compute"
-      let b = maybe False (`indexOf`retTy1) n0 -- TODO: ask why is "isType" in there???
-      --let b = not (isType argTy) && maybe False (`indexOf`retTy1) n0
+      let b = maybe False (`indexOf`retTy1) n0
       pure $ (MkArgInfo c i n1 argTy b :: xs, retTy1)
     go retTy = pure ([],retTy)
 
@@ -121,7 +130,8 @@ makeTypeInfo n = do
   logMsg "makeTypeInfo" 1 "I'm being computed"
   let tyargs = filter (isExplicitPi . piInfo) args
       ty = appTyCon (map (\arg => extractNameStr  arg.name) tyargs) tyname
-  pure $ MkTypeInfo tyname args (zip connames conlist) ty
+  pure $ MkTypeInfo tyname args
+           (zipWith (\x,(y,z) => MkConstructor x y z) connames conlist) ty
 
 
 

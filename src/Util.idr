@@ -38,9 +38,10 @@ export
 zipLS : List a -> Stream b -> List (a,b)
 zipLS = zipWithLS MkPair
 
-export
-catMaybes : List (Maybe a) -> List a
-catMaybes z = foldr (\m,f => maybe f (\x => (x ::) . f) m) id z []
+-- provided by Data.List now
+-- export
+-- catMaybes : List (Maybe a) -> List a
+-- catMaybes z = foldr (\m,f => maybe f (\x => (x ::) . f) m) id z []
 
 export
 unzip : List (a,b) -> (List a, List b)

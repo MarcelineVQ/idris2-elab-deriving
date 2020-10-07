@@ -171,16 +171,16 @@ decEqSameCon funName conName argInfos =
                   ]
 
 
-decEqDiffCon : (opname : Name) -> (Name, List ArgInfo, TTImp) -> (Name, List ArgInfo, TTImp) -> Elab Clause
-decEqDiffCon op (cn1, ca1, ct1) (cn2, ca2, ct3) = 
+decEqDiffCon : (opname : Name) -> Constructor -> Constructor -> Elab Clause
+decEqDiffCon op con1 con2 =
   do
     sym1 <- readableGenSym "a"
     sym2 <- readableGenSym "b"
-    logMsg "decEqCA1" 1 (show ca1)
-    logMsg "decEqCA2" 1 (show ca2)
+    logMsg "decEqCA1" 1 (show con1.args)
+    logMsg "decEqCA2" 1 (show con1.args)
     (let
-        pat1 = makePat cn1 sym1 ca1
-        pat2 = makePat cn2 sym2 ca2
+        pat1 = makePat con1.name sym1 con1.args
+        pat2 = makePat con2.name sym2 con2.args
         lhs = iVar op `iApp` pat1 `iApp` pat2
         rhs = makeRhs sym1 sym2
      in 
@@ -240,14 +240,14 @@ deriveDecEq vis decEqname = do
     -- The components of our decEq-ing function
     funclaim <- decEqClaim funn tyinfo Private -- NB private
     
-    traverse (\(cn,la,ct) => 
+    traverse (\con =>
       do
-        logMsg "deriveDecEq" 1 $ "con name : " ++ show cn
-        logMsg "deriveDecEq" 1 $ "con list args: " ++ show la
-        logTerm "deriveDecEq" 1 "contype: " ct
+        logMsg "deriveDecEq" 1 $ "con name : " ++ show con.name
+        logMsg "deriveDecEq" 1 $ "con list args: " ++ show con.args
+        logTerm "deriveDecEq" 1 "contype: " con.type
       ) tyinfo.cons
         
-    funSameClauses <- traverse (\(consName, argInfo, _) => decEqSameCon funn consName argInfo) tyinfo.cons
+    funSameClauses <- traverse (\con => decEqSameCon funn con.name con.args) tyinfo.cons
     let diffCons = filter (not . isSameCons) [ (a,b) | a <- tyinfo.cons, b <- tyinfo.cons ]
     funDiffClauses <- traverse (uncurry $ decEqDiffCon funn) diffCons
   
@@ -263,6 +263,6 @@ deriveDecEq vis decEqname = do
     declare [funclaim, objclaim]
     declare [fundecl, objclause]
  where
-   isSameCons : ((Name,b), (Name, b)) -> Bool
-   isSameCons ((n1,_),(n2,_)) = n1 == n2
+   isSameCons : (Constructor, Constructor) -> Bool
+   isSameCons (con1, con2) = con1.name == con2.name
    

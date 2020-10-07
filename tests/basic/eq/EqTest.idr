@@ -1,5 +1,7 @@
 module EqTest
 
+import Data.Nat
+
 import Language.Elab.Deriving.Eq
 %language ElabReflection
 
@@ -98,7 +100,17 @@ data FooN : MyNat -> Type -> Type where
   BorS : b -> FooN (MS MZ) b
   BorNA : (k : MyNat) -> b -> FooN n b
   BorNB : (n : MyNat) -> b -> FooN n b
-  
+
+-- This should also be handled by Eq but is not currently.
+-- data XXX : Type where
+--   MkXXX : {a : Int} -> XXX
+
+-- %runElab deriveEq Export `{{XXX}}
+
+-- --returns True
+-- testXXX : Bool
+-- testXXX = MkXXX {a = 5} == MkXXX {a = 7}
+
 %runElab deriveEq Export  `{{MyNat}}
 %runElab deriveEq Export `{{Foo1}}
 %runElab deriveEq Export  `{{Foo2}}
