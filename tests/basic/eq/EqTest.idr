@@ -1,4 +1,4 @@
-module Language.Elab.Deriving.EqTest
+module EqTest
 
 import Language.Elab.Deriving.Eq
 %language ElabReflection
@@ -99,9 +99,6 @@ data FooN : MyNat -> Type -> Type where
   BorNA : (k : MyNat) -> b -> FooN n b
   BorNB : (n : MyNat) -> b -> FooN n b
   
-data XXX : Type where
-  MkXXX : {a : Int} -> (b : Int) -> XXX
-
 %runElab deriveEq Export  `{{MyNat}}
 %runElab deriveEq Export `{{Foo1}}
 %runElab deriveEq Export  `{{Foo2}}
@@ -112,7 +109,6 @@ data XXX : Type where
 %runElab deriveEq Private `{{FooN}}
 %runElab deriveEq Private `{{Foo6}}
 %runElab deriveEq Export  `{{Foo6'}}
-%runElab deriveEq Export  `{{XXX}}
 
 -- can check what's generated via
 -- :printdef eqImplFoo7'Fun

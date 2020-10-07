@@ -1,0 +1,22 @@
+package tests
+
+authors    = "MarcelineVQ, redfish64"
+version    = "0.1"
+readme     = "README_test.md"
+
+homepage   = "https://github.com/MarcelineVQ/idris2-elab-deriving"
+sourceloc  = "https://github.com/MarcelineVQ/idris2-elab-deriving.git"
+bugtracker = "https://github.com/MarcelineVQ/idris2-elab-deriving/issues"
+
+license    = "CC0 (refer to LICENSE file)"
+brief      = "Derive common functions and interfaces"
+
+modules = Main
+
+executable = "runtests"
+main = Main
+
+depends = base
+          , contrib 
+          , elab-deriving
+

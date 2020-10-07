@@ -11,7 +11,7 @@ import Util
 
 -- try making conditionals here, like
 
---wrapShow : Show a => String -> String -> a -> String
+-- wrapShow : Show a => String -> String -> a -> String
 -- which wraps with given parens if a constructor doesn't have arguments
 
 -- e.g. Just x = "(Just x)"  Nothing = "Nothing"

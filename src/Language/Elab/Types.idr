@@ -58,6 +58,7 @@ indexOf n1 (IVar _ n2) = n1 == n2
 indexOf l (IApp _ z w) = indexOf l z || indexOf l w
 indexOf _ _ = False
 
+
 -- workhorse of the module, though you'll tend to use it through makeTypeInfo
 -- If an argument doesn't have a name we generate one for it, this simplifies
 -- use of names. That being said idris (with PR 337) should have already
@@ -72,7 +73,8 @@ getConType qn = go (snd !(lookupName qn))
       (xs,retTy1) <- go retTy0
       let n1 = maybe !(genSym "arg") id n0
       logMsg "getConType" 1 "compute"
-      let b = not (isType argTy) && maybe False (`indexOf`retTy1) n0
+      let b = maybe False (`indexOf`retTy1) n0 -- TODO: ask why is "isType" in there???
+      --let b = not (isType argTy) && maybe False (`indexOf`retTy1) n0
       pure $ (MkArgInfo c i n1 argTy b :: xs, retTy1)
     go retTy = pure ([],retTy)
 

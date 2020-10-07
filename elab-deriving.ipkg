@@ -14,13 +14,11 @@ brief      = "Derive common functions and interfaces"
 modules = Language.Elab.Deriving
 
         , Language.Elab.Deriving.Show
-        , Language.Elab.Deriving.ShowTest
+        , Language.Elab.Deriving.DecEq
         , Language.Elab.Deriving.Eq
-        , Language.Elab.Deriving.EqTest
         , Language.Elab.Deriving.Ord
         
         , Language.Elab.Deriving.Selectors
-        
 
         , Language.Elab.Syntax
         , Language.Elab.Types
@@ -31,3 +29,4 @@ modules = Language.Elab.Deriving
 sourcedir = "src"
 
 depends = base
+

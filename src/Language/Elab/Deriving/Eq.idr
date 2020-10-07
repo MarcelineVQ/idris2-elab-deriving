@@ -44,11 +44,9 @@ eqClaim op tyinfo vis = do
       varnames = map (show . name) conargs
       params = map (extractNameStr . name) $ filter (not . isIndex) conargs
       tysig = `(~(tyinfo.type) -> ~(tyinfo.type) -> Bool)
-      tysig' = addEqAutoImps params tysig
   logMsg "eqClaim" 1 $ ("auto params: ") ++ show params
-  logTerm "eqClaimTySig" 1 "" tysig'
   -- NB: I can't think of a reason not to Inline here
-  pure $ iClaim MW vis [Inline] (mkTy op tysig')
+  pure $ iClaim MW vis [Inline] (mkTy op (addEqAutoImps params tysig))
 
 eqCon : (opname : Name) -> (Name, List ArgInfo, TTImp) -> Elab Clause
 eqCon op (conname, args, contype) = do
@@ -137,10 +135,3 @@ deriveEq vis eqname = do
     -- Both claims first, otherwise we won't find our own Eq in fundecl
     declare [funclaim, objclaim]
     declare [fundecl, objclause]
-
-data Flippy = Dolphin | Shark
-
-%language ElabReflection
-%logging 1
-%runElab deriveEq Export  `{{Flippy}}
-  
