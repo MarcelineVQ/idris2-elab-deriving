@@ -171,9 +171,7 @@ mapName f (UN n) = UN (f n)
 mapName f (MN n i) = (MN (f n) i)
 mapName f (NS ns n) = (NS ns (mapName f n))
 mapName f (DN n realn) = (DN (f n) realn)
--- mapName f (Nested ix n) = Nested ix (mapName f n)
--- mapName f (CaseBlock outer inner) = CaseBlock outer inner
--- mapName f (WithBlock outer inner) = WithBlock outer inner
+mapName f (RF n) = RF (f n)
 
 export
 extractNameStr : Name -> String
@@ -181,6 +179,7 @@ extractNameStr (UN x) = x
 extractNameStr (MN x y) = x
 extractNameStr (NS xs x) = extractNameStr x
 extractNameStr (DN x _) = x
+extractNameStr (RF x) = x
 
 isOpChar : Char -> Bool
 isOpChar c = c `elem` (unpack ":!#$%&*+./<=>?@\\^|-~")
