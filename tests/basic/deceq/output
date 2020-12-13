@@ -1,10 +1,10 @@
 1/1: Building DecEqTest (DecEqTest.idr)
 DecEqTest> DecEqTest.decEqImplFlippy : DecEq Flippy
-decEqImplFlippy = DecEq at Decidable/Equality.idr:15:1--25:78 decEqImplFlippyFun
+decEqImplFlippy = DecEq at Decidable/Equality/Core.idr:9:1--13:48 decEqImplFlippyFun
 DecEqTest> DecEqTest.decEqImplFlippyFun : (x1 : Flippy) -> (x2 : Flippy) -> Dec (x1 = x2)
 decEqImplFlippyFun Dolphin Dolphin = Yes Refl
 decEqImplFlippyFun Shark Shark = Yes Refl
-decEqImplFlippyFun Dolphin Shark = No (foo b2569 a2568)
-decEqImplFlippyFun Shark Dolphin = No (foo b2571 a2570)
+decEqImplFlippyFun Dolphin Shark = No (\{lcase:0} => let b439 = Shark in let a438 = Dolphin in case block in decEqImplFlippyFun b439 a438 lcase)
+decEqImplFlippyFun Shark Dolphin = No (\{lcase:0} => let b441 = Dolphin in let a440 = Shark in case block in decEqImplFlippyFun b441 a440 lcase)
 DecEqTest> 
 Bye for now!

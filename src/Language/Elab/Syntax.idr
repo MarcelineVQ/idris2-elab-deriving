@@ -43,8 +43,12 @@ iApp' : String -> TTImp -> TTImp -> TTImp
 iApp' s = IApp (namedFC s)
 
 export
-iImplicitApp : TTImp -> Maybe Name -> TTImp -> TTImp
-iImplicitApp = IImplicitApp EmptyFC
+iNamedApp : TTImp -> Name -> TTImp -> TTImp
+iNamedApp = INamedApp EmptyFC
+
+export
+iAutoApp : TTImp -> TTImp -> TTImp
+iAutoApp = IAutoApp EmptyFC
 
 export
 implicit' : TTImp
@@ -308,7 +312,8 @@ Eq TTImp where
   (ILocal x1 xs1 y1) == (ILocal x2 xs2 y2) = ?holeEq_6
   (IUpdate x1 xs1 y1) == (IUpdate x2 xs2 y2) = ?holeEq_7
   (IApp x1 y1 z1) == (IApp x2 y2 z2) = x1 == x2 && y1 == y2 && z1 == z2
-  (IImplicitApp x1 y1 z1 w1) == (IImplicitApp x2 y2 z2 w2) = x1 == x2 && y1 == y2 && z1 == z2 && w1 == w2
+  (INamedApp x1 y1 z1 w1) == (INamedApp x2 y2 z2 w2) = x1 == x2 && y1 == y2 && z1 == z2 && w1 == w2
+  (IAutoApp x1 y1 w1) == (IAutoApp x2 y2 w2) = x1 == x2 && y1 == y2 && w1 == w2
   (IWithApp x1 y1 z1) == (IWithApp x2 y2 z2) = x1 == x2 && y1 == y2 && z1 == z2
   (ISearch x1 depth1) == (ISearch x2 depth2) = x1 == x2 && depth1 == depth2
   (IAlternative x1 y1 xs1) == (IAlternative x2 y2 xs2) = ?holeEq_12

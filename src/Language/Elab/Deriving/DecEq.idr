@@ -56,7 +56,7 @@ decEqClaim op tyinfo vis = do
 lhsApp : ArgInfo -> TTImp -> TTImp -> TTImp
 lhsApp ai caller callee = 
        if isImplicitPi (ai.piInfo) 
-       then iImplicitApp caller (Just $ ai.name) callee
+       then iNamedApp caller ai.name callee
        else iApp caller callee
           
 decEqSameCon : 
@@ -194,14 +194,8 @@ decEqDiffCon op con1 con2 =
     makePat con sym argInfos = iAs sym 
         (foldl (\tt,ai => lhsApp ai tt implicit') (iVar con) argInfos)
     makeRhs : (sym1 : Name) -> (sym2 : Name) -> TTImp
-    makeRhs s1 s2 =
-      -- need this let here because I can't figure out how to add a TTImp.Clause to lambda
-      -- and we need the ImpossibleClause
-      `(let foo : (~(iVar s1) = ~(iVar s2)) -> Void
-            foo Refl impossible
-        in No foo)
-         
-  
+    makeRhs s1 s2 = `( No (\case Refl impossible))
+
 
 ||| The record that idris would make for you when you write an implementation.
 decEqObject : (decname : Name) -> (funname : Name) -> TypeInfo
