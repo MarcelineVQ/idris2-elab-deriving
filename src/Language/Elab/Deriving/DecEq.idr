@@ -216,10 +216,10 @@ decEqObject decname decEqfun tyinfo vis = do
 
 
 export
-||| Usage: %runElab deriveEq Export `{{Foo}}
-||| Currently, this adds decEqImplFoo (a function that returns the "interface" data object and marks itself
-||| as with hint on, and decEqImpltFooFun which actually implements decEq.
-||| This is likely to change in the future to only have decEqImplFoo being added
+||| Usage: %runElab deriveDecEq Export `{{Foo}}
+||| Currently, this adds decDecEqImplFoo (a function that returns the "interface" data object and marks itself
+||| as with hint on, and decDecEqImpltFooFun which actually implements decDecEq.
+||| This is likely to change in the future to only have decDecEqImplFoo being added
 ||| to the namespace.
 deriveDecEq : Visibility -> Name -> Elab ()
 deriveDecEq vis decEqname = do
