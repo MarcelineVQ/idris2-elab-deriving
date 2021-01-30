@@ -47,14 +47,6 @@ export
 unzip : List (a,b) -> (List a, List b)
 unzip = foldr (\(x,y),(xs,ys) => (x :: xs, y :: ys)) ([],[])
 
--- This is hiiiiiideously slow! maybe it's because I'm using it at elab-time
-export
-unzip3 : List (a,b,c) -> (List a, List b, List c)
-unzip3 [] = ([],[],[])
-unzip3 ((x, (y, z)) :: ls) = let (xs,ys,zs) = unzip3 ls
-                             in (x :: xs, y:: ys, z :: zs)
-
-
 export
 isJust : Maybe a -> Bool
 isJust (Just _ ) = True
