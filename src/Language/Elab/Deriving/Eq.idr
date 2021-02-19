@@ -119,7 +119,6 @@ deriveEq vis eqname = do
     -- Build general info about the type we're deriving (e.g. Foo) that we want
     -- to keep around.
     tyinfo <- makeTypeInfo qname
-
     -- The components of our eq-ing function
     funclaim <- eqClaim funn tyinfo Private -- NB private
     funclauses <- traverse (eqCon funn) tyinfo.cons

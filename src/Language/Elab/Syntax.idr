@@ -76,11 +76,11 @@ iClaim' s = IClaim (namedFC s)
 
 export
 mkTy : (n : Name) -> (ty : TTImp) -> ITy
-mkTy = MkTy EmptyFC
+mkTy = MkTy EmptyFC EmptyFC
 
 export
 mkTy' : String -> (n : Name) -> (ty : TTImp) -> ITy
-mkTy' s = MkTy (namedFC s)
+mkTy' s = MkTy EmptyFC (namedFC s)
 
 export
 iPi : Count -> PiInfo TTImp -> Maybe Name ->
@@ -100,7 +100,7 @@ iLam = ILam EmptyFC
 export
 iLet : Count -> Name -> (nTy : TTImp) -> (nVal : TTImp)
     -> (scope : TTImp) -> TTImp
-iLet = ILet EmptyFC
+iLet = ILet EmptyFC EmptyFC
 
 export
 iCase : TTImp -> (ty : TTImp)
@@ -113,7 +113,7 @@ iDef = IDef EmptyFC
 
 export
 iAs : Name -> TTImp -> TTImp
-iAs = IAs EmptyFC UseLeft  
+iAs = IAs EmptyFC EmptyFC UseLeft  
 
 export
 iPrimVal : (c : Constant) -> TTImp
@@ -307,7 +307,7 @@ Eq TTImp where
   (IVar x1 y1) == (IVar x2 y2) = x1 == x2 && y1 == y2
   (IPi x1 y1 z1 w1 argTy1 retTy1) == (IPi x2 y2 z2 w2 argTy2 retTy2) = ?holeEq_2
   (ILam x1 y1 z1 w1 argTy1 lamTy1) == (ILam x2 y2 z2 w2 argTy2 lamTy2) = ?holeEq_3
-  (ILet x1 y1 z1 nTy1 nVal1 scope1) == (ILet x2 y2 z2 nTy2 nVal2 scope2) = ?holeEq_4
+  (ILet a1 x1 y1 z1 nTy1 nVal1 scope1) == (ILet a2 x2 y2 z2 nTy2 nVal2 scope2) = ?holeEq_4
   (ICase x1 y1 ty1 xs1) == (ICase x2 y2 ty2 xs2) = ?holeEq_5
   (ILocal x1 xs1 y1) == (ILocal x2 xs2 y2) = ?holeEq_6
   (IUpdate x1 xs1 y1) == (IUpdate x2 xs2 y2) = ?holeEq_7
@@ -320,7 +320,7 @@ Eq TTImp where
   (IRewrite x1 y1 z1) == (IRewrite x2 y2 z2) = ?holeEq_13
   (IBindHere x1 y1 z1) == (IBindHere x2 y2 z2) = ?holeEq_14
   (IBindVar x1 y1) == (IBindVar x2 y2) = ?holeEq_15
-  (IAs x1 y1 z1 w1) == (IAs x2 y2 z2 w2) = ?holeEq_16
+  (IAs a1 x1 y1 z1 w1) == (IAs a2 x2 y2 z2 w2) = ?holeEq_16
   (IMustUnify x1 y1 z1) == (IMustUnify x2 y2 z2) = ?holeEq_17
   (IDelayed x1 y1 z1) == (IDelayed x2 y2 z2) = ?holeEq_18
   (IDelay x1 y1) == (IDelay x2 y2) = ?holeEq_19
