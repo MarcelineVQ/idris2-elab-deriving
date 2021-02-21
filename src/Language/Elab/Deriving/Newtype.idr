@@ -193,21 +193,21 @@ ntWrapField ntty ntcon wrappedty det fname fimp = mkFun fimp
 -- that changging.
 -- We need the ntname, ntcontypimpl, iface name, iface conname, iface objimpl
 deriveGeneralImpl : (ntname : Name) -> (nttype : TTImp) -> Visibility
-                 -> (ntcon : Name) -> (wrappedtype : TTImp) -> (Name, (Name, List ArgInfo, TTImp)) -> Elab ()
-deriveGeneralImpl ntname nttype vis ntcon wrappedty (iname,icon)  = do
-  let defname = UN ("ntImpl_" ++ extractNameStr ntname ++ extractNameStr iname)
+                 -> (ntcon : Name) -> (wrappedtype : TTImp) -> TypeInfo -> Elab ()
+deriveGeneralImpl ntname nttype vis ntcon wrappedty tyinfo (iname,icon)  = do
+  let defname = UN ("ntImpl_" ++ extractNameStr ntname ++ extractNameStr tyinfo.name)
       hty = mkTy defname (iVar iname `iApp` nttype)
       head = iClaim MW vis [Hint True] hty
-  (_,impl) <- lookupName iname
-  fillty <- makeTypeInfo iname
+  (_,impl) <- lookupName tyinfo.name
+  fillty <- makeTypeInfo tyinfo.name
   [arg] <- pure fillty.args
     | _ => fail "badshape"
-  (_,conimp) <- lookupName icon.one
+  (_,conimp) <- lookupName tyinfo.cons.name
     | _ => fail "sdfsdf"
   (det,fields) <- separateFields conimp
   wrappedfs <- traverse (\(fname,imp) => ntWrapField nttype ntcon wrappedty det fname imp) fields
   
-  let cac = foldl (\tt,f => tt `iApp` f) (iVar icon.one) wrappedfs
+  let cac = foldl (\tt,f => tt `iApp` f) (iVar icon.name) wrappedfs
       def = iDef defname [patClause (iVar defname) cac]
 
   logDecls 1 "def" [head,def]
@@ -228,17 +228,17 @@ newtypeDerive n vis ilist = do
       | _ => fail notNT
     -- check that our constructor has the right form
     [arg] <- pure $ filter (not . isUse0 . count
-                          && isExplicitPi . piInfo) con.two
+                          && isExplicitPi . piInfo) con.args
       | _ => fail notNT
 
     -- Here we validate our list of interfaces
     ns@(_::_) <- collectIList' ilist
       | [] => fail "Interface list for deriving was empty."
 
-    -- traverseE (deriveSpecialImpl ...) ns
+    -- traverse (deriveSpecialImpl ...) ns
     -- ^ things like Show should farm out to Show deriving
 
-    traverseE (deriveGeneralImpl n typeinfo.type vis con.one arg.type) ns
+    traverse (deriveGeneralImpl n typeinfo.type vis con.name arg.type) ns
 
     pure ()
   where

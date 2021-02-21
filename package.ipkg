@@ -1,7 +1,7 @@
 package elab-deriving
 
 authors    = "MarcelineVQ"
-version    = "0.10.4.1"
+version    = "0.10.4.3"
 readme     = "README.md"
 
 homepage   = "https://github.com/MarcelineVQ/idris2-elab-deriving"
@@ -18,6 +18,8 @@ modules = Language.Elab.Deriving
         , Language.Elab.Deriving.Eq
         , Language.Elab.Deriving.Ord
         
+        , Language.Elab.Deriving.Newtype
+        
         , Language.Elab.Deriving.Selectors
 
         , Language.Elab.Syntax
@@ -29,4 +31,3 @@ modules = Language.Elab.Deriving
 sourcedir = "src"
 
 depends = base
-

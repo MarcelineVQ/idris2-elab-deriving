@@ -5,3 +5,4 @@ build/
 *.a
 *.tcc
 *.ttm
+elab-deriving.ipkg

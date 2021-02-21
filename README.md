@@ -3,6 +3,8 @@ Elab Deriving (bad name, pick better)
 
 Very WIP!
 
+Please check out https://github.com/stefan-hoeck/idris2-elab-util an elab deriving project made by someone much smarter than me.
+
 Resources:
 https://github.com/mb64/idris2-extras/blob/main/Extra/Language/Derive.idr
 https://github.com/david-christiansen/derive-all-the-instances

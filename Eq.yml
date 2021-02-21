@@ -1,0 +1,14 @@
+package: elab-deriving
+version: 0.10.4.3
+
+# test/toy things, some local so you won't see them
+ignoredModules:
+- Language.Elab.Deriving.Range
+- Language.Elab.Deriving.Newtype
+- Language.Elab.Deriving.Generic
+- Language.Elab.Deriving.Functor
+- Foo
+- Example
+
+depends:
+- base
