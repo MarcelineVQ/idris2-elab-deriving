@@ -13,6 +13,15 @@ This is a package for deriving implementations of common functions and interface
 
 It's pretty basic just now but so is elaborator reflection.
 
+Installation
+------------
+You can install via idris2 directly:  
+`idris2 --install package.ipkg`  
+Or via the Makefile:  
+`make install`  
+Or via the [sae tool](https://github.com/DoctorRyner/sae):
+`sae-linux install`
+
 Version
 -------
 
